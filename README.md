@@ -70,7 +70,7 @@ docker compose up -d
 
 | Username     | Password         | บทบาท           | หมายเหตุ |
 |--------------|------------------|------------------|----------|
-| `admin`      | `Admin@12345`    | Administrator    | เห็นข้อมูลทั้งหมด จัดการผู้ใช้/สิทธิ์/ตั้งค่า |
+| `admin`      | `P@ssw0rd`    | Administrator    | เห็นข้อมูลทั้งหมด จัดการผู้ใช้/สิทธิ์/ตั้งค่า |
 | `sales1`     | `Sales@12345`    | Sales            | สร้างใบเสนอราคา **ไม่เห็นราคาทุน** |
 | `salesmgr1`  | `SalesMgr@12345` | Sales Manager    | เห็นต้นทุน/กำไร/GP อนุมัติส่วนลด/ใบเสนอราคา |
 | `account1`   | `Account@12345`  | Accounting       | ออกใบแจ้งหนี้/ใบกำกับภาษี/ใบเสร็จ บันทึกรับชำระ |
@@ -149,7 +149,7 @@ Local disk volume (/app/storage) — product images, datasheets, backups
 | `DEFAULT_VAT_RATE` | `7` | อัตรา VAT เริ่มต้น |
 | `BACKUP_RETENTION_DAYS` | `30` | จำนวนวันที่เก็บไฟล์ Backup อัตโนมัติ |
 | `BACKUP_CRON` | `0 2 * * *` | เวลา Backup อัตโนมัติรายวัน (02:00 น.) |
-| `SEED_ADMIN_USERNAME/PASSWORD/EMAIL` | `admin` / `Admin@12345` / `admin@acy.local` | บัญชี Admin ที่สร้างอัตโนมัติเมื่อฐานข้อมูลว่าง |
+| `SEED_ADMIN_USERNAME/PASSWORD/EMAIL` | `admin` / `P@ssw0rd` / `admin@acy.local` | บัญชี Admin ที่สร้างอัตโนมัติเมื่อฐานข้อมูลว่าง |
 
 ---
 

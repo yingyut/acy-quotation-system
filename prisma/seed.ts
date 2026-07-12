@@ -44,7 +44,7 @@ async function seedUsers() {
   const viewerRole = await prisma.role.findUniqueOrThrow({ where: { key: 'VIEWER' } });
 
   const adminUsername = process.env.SEED_ADMIN_USERNAME ?? 'admin';
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@12345';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'P@ssw0rd';
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@acy.local';
 
   const users = [
