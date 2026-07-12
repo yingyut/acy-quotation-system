@@ -1,5 +1,4 @@
 import type { InvoicePrintData } from '@/lib/pdf/types';
-import { COPY_LABELS } from '@/lib/pdf/types';
 
 function money(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -7,7 +6,6 @@ function money(n: number): string {
 
 export function InvoicePrintDocument({ data }: { data: InvoicePrintData }) {
   const { company, customer, template } = data;
-  const copyLabel = COPY_LABELS[data.copyType];
   const colCount = 1 + (template.showProductCode ? 1 : 0) + 1 + 1 + 1 + 1 + 1 + 1;
 
   return (
@@ -20,18 +18,11 @@ export function InvoicePrintDocument({ data }: { data: InvoicePrintData }) {
           table.doc { width: 100%; border-collapse: collapse; }
           thead { display: table-header-group; }
           tr { page-break-inside: avoid; }
-          .header-flex { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #999; padding-bottom: 8px; margin-bottom: 8px; }
-          .company-block { display: flex; gap: 10px; max-width: 60%; }
-          .company-block img.logo { height: 60px; width: 60px; object-fit: contain; }
-          .company-name-th { font-weight: 700; font-size: 1.1em; color: #1a1a1a; }
-          .company-name-en { font-size: 0.9em; color: #333; }
-          .company-meta { font-size: 0.85em; color: #333; line-height: 1.5; }
-          .doc-meta { text-align: right; }
-          .doc-title { font-size: 1.25em; font-weight: 700; color: #1a1a1a; }
-          .copy-badge { display: inline-block; margin-top: 2px; padding: 1px 8px; border: 1px solid ${template.headerColor}; border-radius: 3px; font-size: 0.8em; color: ${template.headerColor}; }
-          .doc-meta table { margin-left: auto; font-size: 0.82em; border: 1px solid #999; border-collapse: collapse; }
-          .doc-meta td { padding: 3px 8px; text-align: left; border: 1px solid #ccc; }
-          .doc-meta td.k { color: #333; text-align: right; background: #f7f7f7; white-space: nowrap; }
+          .header-block { padding-bottom: 6px; }
+          .doc-meta-table { font-size: 0.82em; border: 1px solid #999; border-collapse: collapse; }
+          .doc-meta-table td { padding: 3px 8px; text-align: left; border: 1px solid #ccc; }
+          .doc-meta-table td.k { color: #333; text-align: right; background: #f7f7f7; white-space: nowrap; }
+          .doc-meta-table-full { width: 100%; margin-bottom: 8px; }
           .customer-block { border: 1px solid #999; border-radius: 2px; padding: 6px 10px; margin-bottom: 8px; font-size: 0.88em; }
           .customer-block .title { font-weight: 700; color: #1a1a1a; margin-bottom: 2px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
           th.col-head { background: #f2f2f2; color: #1a1a1a; font-size: 0.85em; font-weight: 700; padding: 5px 6px; text-align: left; white-space: nowrap; border: 1px solid #999; }
@@ -53,6 +44,46 @@ export function InvoicePrintDocument({ data }: { data: InvoicePrintData }) {
           .footer-text { text-align: center; font-size: 0.78em; color: #888; margin-top: 20px; border-top: 1px solid #eee; padding-top: 6px; }
         `}</style>
       <div className="print-root">
+        {/* The repeating page header (logo, company name, doc title/number,
+            customer name) already covers page 1 too - see
+            headerTemplate.ts / buildInvoiceRepeatingHeaderHtml. This block
+            (outside the <table>, so it appears once on page 1 only) just
+            carries the extra detail that header is too compact for: due
+            date, the originating quotation number, and full customer info. */}
+        <div className="header-block">
+          <table className="doc-meta-table doc-meta-table-full">
+            <tbody>
+              {(data.dueDate || data.quotationDocNumber) && (
+                <tr>
+                  {data.dueDate && (
+                    <>
+                      <td className="k">ครบกำหนดชำระ</td>
+                      <td>{data.dueDate}</td>
+                    </>
+                  )}
+                  {data.quotationDocNumber && (
+                    <>
+                      <td className="k">อ้างอิงใบเสนอราคา</td>
+                      <td>{data.quotationDocNumber}</td>
+                    </>
+                  )}
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          <div className="customer-block">
+            <div className="title">ลูกค้า</div>
+            <div>
+              {customer.name} {customer.isHeadOffice ? '(สำนักงานใหญ่)' : customer.branchName ? `(สาขา ${customer.branchName})` : ''}
+            </div>
+            <div>{customer.address}</div>
+            <div>
+              โทร {customer.phone} {customer.taxId ? `· เลขผู้เสียภาษี ${customer.taxId}` : ''}
+            </div>
+          </div>
+        </div>
+
         <table className="doc">
           <thead>
             <tr>
@@ -67,66 +98,6 @@ export function InvoicePrintDocument({ data }: { data: InvoicePrintData }) {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan={colCount} style={{ borderBottom: 'none' }}>
-                <div className="header-flex">
-                  <div className="company-block">
-                    {company.logoDataUri && <img className="logo" src={company.logoDataUri} alt="logo" />}
-                    <div>
-                      <div className="company-name-th">{company.nameTh}</div>
-                      <div className="company-name-en">{company.nameEn}</div>
-                      <div className="company-meta">
-                        {company.addressTh}
-                        <br />
-                        โทร {company.phone} {company.email ? `· อีเมล ${company.email}` : ''}
-                        <br />
-                        เลขประจำตัวผู้เสียภาษี {company.taxId}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="doc-meta">
-                    <div className="doc-title">{data.docTitle}</div>
-                    <div className="copy-badge">{copyLabel.th} / {copyLabel.en}</div>
-                    <table>
-                      <tbody>
-                        <tr>
-                          <td className="k">เลขที่เอกสาร</td>
-                          <td>{data.docNumber}</td>
-                        </tr>
-                        <tr>
-                          <td className="k">วันที่</td>
-                          <td>{data.issueDate}</td>
-                        </tr>
-                        {data.dueDate && (
-                          <tr>
-                            <td className="k">ครบกำหนดชำระ</td>
-                            <td>{data.dueDate}</td>
-                          </tr>
-                        )}
-                        {data.quotationDocNumber && (
-                          <tr>
-                            <td className="k">อ้างอิงใบเสนอราคา</td>
-                            <td>{data.quotationDocNumber}</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="customer-block">
-                  <div className="title">ลูกค้า</div>
-                  <div>
-                    {customer.name} {customer.isHeadOffice ? '(สำนักงานใหญ่)' : customer.branchName ? `(สาขา ${customer.branchName})` : ''}
-                  </div>
-                  <div>{customer.address}</div>
-                  <div>
-                    โทร {customer.phone} {customer.taxId ? `· เลขผู้เสียภาษี ${customer.taxId}` : ''}
-                  </div>
-                </div>
-              </td>
-            </tr>
-
             {data.items.map((item, idx) => (
               <tr key={idx}>
                 <td className="num">{item.no}</td>

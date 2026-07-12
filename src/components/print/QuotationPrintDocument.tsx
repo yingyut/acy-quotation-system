@@ -1,5 +1,4 @@
 import type { QuotationPrintData } from '@/lib/pdf/types';
-import { COPY_LABELS } from '@/lib/pdf/types';
 
 function money(n: number): string {
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -9,7 +8,6 @@ const IMAGE_SIZE_PX: Record<string, number> = { NONE: 0, SMALL: 36, MEDIUM: 64, 
 
 export function QuotationPrintDocument({ data }: { data: QuotationPrintData }) {
   const { company, customer, template } = data;
-  const copyLabel = COPY_LABELS[data.copyType];
   const imgSize = IMAGE_SIZE_PX[template.productImageMode] ?? 0;
 
   const colCount =
@@ -38,18 +36,10 @@ export function QuotationPrintDocument({ data }: { data: QuotationPrintData }) {
           tfoot { display: table-footer-group; }
           tr { page-break-inside: avoid; }
           .header-block { padding-bottom: 6px; }
-          .header-flex { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid #999; }
-          .company-block { display: flex; gap: 10px; max-width: 58%; }
-          .company-block img.logo { height: 60px; width: 60px; object-fit: contain; }
-          .company-name-th { font-weight: 700; font-size: 1.1em; color: #1a1a1a; }
-          .company-name-en { font-size: 0.9em; color: #333; }
-          .company-meta { font-size: 0.85em; color: #333; line-height: 1.5; margin-top: 2px; }
-          .doc-meta { text-align: right; }
-          .doc-title { font-size: 1.25em; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-          .copy-badge { display: inline-block; margin-bottom: 4px; padding: 1px 8px; border: 1px solid ${template.headerColor}; border-radius: 3px; font-size: 0.8em; color: ${template.headerColor}; }
-          .doc-meta-table { margin-left: auto; font-size: 0.82em; border: 1px solid #999; border-collapse: collapse; }
+          .doc-meta-table { font-size: 0.82em; border: 1px solid #999; border-collapse: collapse; }
           .doc-meta-table td { padding: 3px 8px; text-align: left; border: 1px solid #ccc; }
           .doc-meta-table td.k { color: #333; text-align: right; background: #f7f7f7; white-space: nowrap; }
+          .doc-meta-table-full { width: 100%; margin-bottom: 8px; }
           .info-row { display: flex; gap: 8px; margin-bottom: 8px; }
           .customer-block { flex: 1.4; border: 1px solid #999; border-radius: 2px; padding: 6px 10px; font-size: 0.88em; }
           .subject-block { flex: 1; border: 1px solid #999; border-radius: 2px; padding: 6px 10px; font-size: 0.88em; }
@@ -80,56 +70,28 @@ export function QuotationPrintDocument({ data }: { data: QuotationPrintData }) {
           .footer-text { text-align: center; font-size: 0.78em; color: #888; margin-top: 20px; border-top: 1px solid #eee; padding-top: 6px; }
         `}</style>
       <div className="print-root">
-        {/* Letterhead lives outside the <table> entirely, so it naturally
-            appears once at the top of page 1 only. The <thead> below (just
-            the column header row) still repeats automatically on every
-            subsequent page via `display: table-header-group`. */}
+        {/* The repeating page header (logo, company name, doc title/number,
+            customer name - see headerTemplate.ts / buildRepeatingHeaderHtml)
+            already covers page 1 too, since Puppeteer's headerTemplate
+            renders on every page including the first. What's left here is
+            just the extra detail that header is too compact to carry:
+            validity/delivery/payment terms and full customer/subject info.
+            This lives outside the <table> entirely so it appears once, only
+            on page 1 - the <thead> below (the column header row) is what
+            repeats automatically on every subsequent page. */}
         <div className="header-block">
-          <div className="header-flex">
-            <div className="company-block">
-              {company.logoDataUri && <img className="logo" src={company.logoDataUri} alt="logo" />}
-              <div>
-                <div className="company-name-th">{company.nameTh}</div>
-                <div className="company-name-en">{company.nameEn}</div>
-                <div className="company-meta">
-                  {company.addressTh}
-                  <br />
-                  โทร {company.phone} {company.email ? `· อีเมล ${company.email}` : ''}
-                  <br />
-                  เลขประจำตัวผู้เสียภาษี {company.taxId}
-                </div>
-              </div>
-            </div>
-            <div className="doc-meta">
-              <div className="doc-title">{data.docTitle} / Quotation</div>
-              <div className="copy-badge">
-                {copyLabel.th} / {copyLabel.en}
-              </div>
-              <table className="doc-meta-table">
-                <tbody>
-                  <tr>
-                    <td className="k">วันที่ (Date)</td>
-                    <td>{data.quoteDate}</td>
-                    <td className="k">เลขที่ใบเสนอราคา</td>
-                    <td>
-                      {data.docNumber}
-                      {data.revisionNo > 0 ? ` Rev.${data.revisionNo}` : ''}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="k">กำหนดยืนราคา</td>
-                    <td>{data.validUntilDate}</td>
-                    <td className="k">ระยะเวลาส่งของ</td>
-                    <td>{data.deliveryTerms || '-'}</td>
-                  </tr>
-                  <tr>
-                    <td className="k">เงื่อนไขการชำระเงิน</td>
-                    <td colSpan={3}>{data.paymentTerms || '-'}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <table className="doc-meta-table doc-meta-table-full">
+            <tbody>
+              <tr>
+                <td className="k">กำหนดยืนราคา</td>
+                <td>{data.validUntilDate}</td>
+                <td className="k">ระยะเวลาส่งของ</td>
+                <td>{data.deliveryTerms || '-'}</td>
+                <td className="k">เงื่อนไขการชำระเงิน</td>
+                <td>{data.paymentTerms || '-'}</td>
+              </tr>
+            </tbody>
+          </table>
 
           <div className="info-row">
             <div className="customer-block">
