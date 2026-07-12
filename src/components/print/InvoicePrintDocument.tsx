@@ -20,29 +20,29 @@ export function InvoicePrintDocument({ data }: { data: InvoicePrintData }) {
           table.doc { width: 100%; border-collapse: collapse; }
           thead { display: table-header-group; }
           tr { page-break-inside: avoid; }
-          .header-flex { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid ${template.headerColor}; padding-bottom: 8px; margin-bottom: 8px; }
+          .header-flex { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #999; padding-bottom: 8px; margin-bottom: 8px; }
           .company-block { display: flex; gap: 10px; max-width: 60%; }
-          .company-block img.logo { height: 56px; object-fit: contain; }
-          .company-name-th { font-weight: 700; font-size: 1.15em; color: ${template.headerColor}; }
-          .company-name-en { font-size: 0.9em; color: #555; }
-          .company-meta { font-size: 0.85em; color: #444; line-height: 1.5; }
+          .company-block img.logo { height: 60px; width: 60px; object-fit: contain; }
+          .company-name-th { font-weight: 700; font-size: 1.1em; color: #1a1a1a; }
+          .company-name-en { font-size: 0.9em; color: #333; }
+          .company-meta { font-size: 0.85em; color: #333; line-height: 1.5; }
           .doc-meta { text-align: right; }
-          .doc-title { font-size: 1.3em; font-weight: 700; color: ${template.headerColor}; }
+          .doc-title { font-size: 1.25em; font-weight: 700; color: #1a1a1a; }
           .copy-badge { display: inline-block; margin-top: 2px; padding: 1px 8px; border: 1px solid ${template.headerColor}; border-radius: 3px; font-size: 0.8em; color: ${template.headerColor}; }
-          .doc-meta table { margin-left: auto; font-size: 0.85em; }
-          .doc-meta td { padding: 1px 0 1px 8px; text-align: left; }
-          .doc-meta td.k { color: #666; text-align: right; }
-          .customer-block { border: 1px solid #ddd; border-radius: 4px; padding: 8px 10px; margin-bottom: 8px; font-size: 0.88em; }
-          .customer-block .title { font-weight: 700; color: ${template.headerColor}; margin-bottom: 2px; }
-          th.col-head { background: ${template.headerColor}; color: #fff; font-size: 0.85em; padding: 5px 6px; text-align: left; white-space: nowrap; }
+          .doc-meta table { margin-left: auto; font-size: 0.82em; border: 1px solid #999; border-collapse: collapse; }
+          .doc-meta td { padding: 3px 8px; text-align: left; border: 1px solid #ccc; }
+          .doc-meta td.k { color: #333; text-align: right; background: #f7f7f7; white-space: nowrap; }
+          .customer-block { border: 1px solid #999; border-radius: 2px; padding: 6px 10px; margin-bottom: 8px; font-size: 0.88em; }
+          .customer-block .title { font-weight: 700; color: #1a1a1a; margin-bottom: 2px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+          th.col-head { background: #f2f2f2; color: #1a1a1a; font-size: 0.85em; font-weight: 700; padding: 5px 6px; text-align: left; white-space: nowrap; border: 1px solid #999; }
           th.col-head.num, td.num { text-align: right; }
           td { padding: 5px 6px; font-size: 0.9em; border-bottom: 1px solid #eee; vertical-align: top; }
           .item-name { font-weight: 600; }
           .item-desc { color: #666; font-size: 0.92em; }
           .totals-block { page-break-inside: avoid; }
-          .totals-table { width: 320px; margin-left: auto; font-size: 0.9em; }
-          .totals-table td { padding: 3px 4px; border: none; }
-          .totals-table tr.net td { border-top: 2px solid ${template.headerColor}; font-weight: 700; font-size: 1.1em; }
+          .totals-table { width: 320px; margin-left: auto; font-size: 0.9em; border: 1px solid #999; border-collapse: collapse; }
+          .totals-table td { padding: 3px 8px; border: 1px solid #ccc; }
+          .totals-table tr.net td { font-weight: 700; font-size: 1.05em; background: #f2f2f2; }
           .amount-words { text-align: right; font-size: 0.85em; color: #555; margin-top: 2px; }
           .payment-block { margin-top: 10px; font-size: 0.88em; background: #f3f4f6; padding: 8px 10px; border-radius: 4px; }
           .signature-block { page-break-inside: avoid; margin-top: 30px; display: flex; justify-content: space-between; }
