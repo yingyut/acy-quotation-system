@@ -1,11 +1,15 @@
 import { PDFDocument } from 'pdf-lib';
 import { signPrintToken } from '@/lib/printToken';
 import { renderUrlToPdf, buildInternalPrintUrl, PRINT_MARGINS } from '@/lib/pdf/generatePdf';
-import { buildReceiptPrintData } from '@/lib/pdf/buildReceiptPrintData';
-import { buildInvoiceRepeatingHeaderHtml } from '@/lib/pdf/headerTemplate';
+import { buildDeliveryNotePrintData } from '@/lib/pdf/buildDeliveryNotePrintData';
+import { buildDeliveryNoteRepeatingHeaderHtml } from '@/lib/pdf/headerTemplate';
 import type { CopyType } from '@/lib/pdf/types';
 
-export async function generateReceiptPdf(receiptId: string, userId: string, copyTypes: CopyType[]): Promise<Buffer> {
+export async function generateDeliveryNotePdf(
+  deliveryNoteId: string,
+  userId: string,
+  copyTypes: CopyType[],
+): Promise<Buffer> {
   const marginOptions = {
     marginTopMm: PRINT_MARGINS.topMm,
     marginRightMm: PRINT_MARGINS.sideMm,
@@ -13,13 +17,14 @@ export async function generateReceiptPdf(receiptId: string, userId: string, copy
     marginLeftMm: PRINT_MARGINS.sideMm,
     showPageNumber: true,
   };
-  const token = signPrintToken({ docType: 'receipt', id: receiptId, userId });
+
+  const token = signPrintToken({ docType: 'delivery-note', id: deliveryNoteId, userId });
 
   const buffers: Buffer[] = [];
   for (const copyType of copyTypes) {
-    const printData = await buildReceiptPrintData(receiptId, copyType);
-    const headerHtml = buildInvoiceRepeatingHeaderHtml(printData);
-    const url = buildInternalPrintUrl(`/print/receipt/${receiptId}?copy=${copyType}&token=${token}`);
+    const printData = await buildDeliveryNotePrintData(deliveryNoteId, copyType);
+    const headerHtml = buildDeliveryNoteRepeatingHeaderHtml(printData);
+    const url = buildInternalPrintUrl(`/print/delivery-note/${deliveryNoteId}?copy=${copyType}&token=${token}`);
     buffers.push(await renderUrlToPdf(url, { ...marginOptions, headerHtml }));
   }
 

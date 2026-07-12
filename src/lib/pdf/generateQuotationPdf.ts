@@ -1,7 +1,7 @@
 import { PDFDocument } from 'pdf-lib';
 import { prisma } from '@/lib/prisma';
 import { signPrintToken } from '@/lib/printToken';
-import { renderUrlToPdf, buildInternalPrintUrl } from '@/lib/pdf/generatePdf';
+import { renderUrlToPdf, buildInternalPrintUrl, PRINT_MARGINS } from '@/lib/pdf/generatePdf';
 import { buildQuotationPrintData } from '@/lib/pdf/buildQuotationPrintData';
 import { buildRepeatingHeaderHtml } from '@/lib/pdf/headerTemplate';
 import type { CopyType } from '@/lib/pdf/types';
@@ -16,15 +16,15 @@ export async function generateQuotationPdf(
     include: { template: true },
   });
 
-  // The repeating page header (logo/company/doc info/customer name - see
-  // headerTemplate.ts) needs its own reserved space on top of whatever
-  // top margin the admin configured for the document content itself.
-  const REPEATING_HEADER_HEIGHT_MM = 30;
+  // marginTopMm must closely match the *actual rendered height* of the
+  // repeating header (see PRINT_MARGINS doc-comment in generatePdf.ts) -
+  // too large and a dead gap appears above the body content on every
+  // page; too small and the header gets clipped/overlapped.
   const marginOptions = {
-    marginTopMm: (quotation.template?.marginTopMm ?? 15) + REPEATING_HEADER_HEIGHT_MM,
-    marginRightMm: quotation.template?.marginRightMm ?? 12,
-    marginBottomMm: quotation.template?.marginBottomMm ?? 15,
-    marginLeftMm: quotation.template?.marginLeftMm ?? 15,
+    marginTopMm: PRINT_MARGINS.topMm,
+    marginRightMm: quotation.template?.marginRightMm ?? PRINT_MARGINS.sideMm,
+    marginBottomMm: quotation.template?.marginBottomMm ?? PRINT_MARGINS.bottomMm,
+    marginLeftMm: quotation.template?.marginLeftMm ?? PRINT_MARGINS.sideMm,
     showPageNumber: quotation.template?.showPageNumber ?? true,
   };
 

@@ -25,6 +25,25 @@ export interface RenderPdfOptions {
   headerHtml?: string;
 }
 
+/**
+ * Shared page margins for all print templates (Quotation/Invoice/Tax
+ * Invoice/Receipt/Delivery Note). `topMm` is sized to closely match the
+ * *actual rendered height* of the repeating header built in
+ * headerTemplate.ts (~19-20mm for the 4-line company block + customer
+ * line) plus a couple mm of breathing room - Chromium reserves exactly
+ * `margin.top` for the header and starts body content right after it, so
+ * a value larger than the header's real height creates a dead gap above
+ * the body (the bug reported against the previous 45mm reservation), and
+ * a value smaller than it clips the header. If the header content is
+ * ever changed, re-measure against real PDF output rather than guessing.
+ * Side/bottom margins follow the requested ~8-10mm print margin.
+ */
+export const PRINT_MARGINS = {
+  topMm: 26,
+  sideMm: 10,
+  bottomMm: 10,
+};
+
 /** Base URL the PDF worker uses to reach this same Next.js server. In
  *  Docker this is the container's own loopback (the app listens on
  *  0.0.0.0:3000); the browser-visible NEXTAUTH_URL is not reachable from
@@ -47,9 +66,9 @@ export async function renderUrlToPdf(url: string, options: RenderPdfOptions): Pr
       landscape: options.landscape ?? false,
       printBackground: true,
       margin: {
-        top: `${options.marginTopMm + 6}mm`,
+        top: `${options.marginTopMm}mm`,
         right: `${options.marginRightMm}mm`,
-        bottom: `${options.marginBottomMm + (options.showPageNumber ? 8 : 0)}mm`,
+        bottom: `${options.marginBottomMm + (options.showPageNumber ? 6 : 0)}mm`,
         left: `${options.marginLeftMm}mm`,
       },
       displayHeaderFooter: true,

@@ -20,6 +20,22 @@ export default async function DeliveryNoteDetailPage({ params }: { params: { id:
         <span className="badge bg-blue-100 text-blue-700">{note.status}</span>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        <a href={`/print/delivery-note/${note.id}?copy=ORIGINAL`} target="_blank" className="btn-secondary text-sm">
+          Preview PDF
+        </a>
+        <a href={`/api/delivery-notes/${note.id}/pdf?copies=ORIGINAL`} target="_blank" className="btn-secondary text-sm">
+          Export PDF (ต้นฉบับ)
+        </a>
+        <a
+          href={`/api/delivery-notes/${note.id}/pdf?copies=ORIGINAL,COPY_ACCOUNTING`}
+          target="_blank"
+          className="btn-secondary text-sm"
+        >
+          พิมพ์ต้นฉบับ+สำเนา
+        </a>
+      </div>
+
       <div className="card text-sm">
         <p>ลูกค้า: {note.salesOrder.quotation.customer.name}</p>
         <p>วันที่: {note.deliveryDate.toLocaleDateString('th-TH')}</p>

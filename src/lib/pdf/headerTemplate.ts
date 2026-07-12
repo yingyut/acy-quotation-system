@@ -1,4 +1,4 @@
-import type { QuotationPrintData, InvoicePrintData, CopyType } from '@/lib/pdf/types';
+import type { QuotationPrintData, InvoicePrintData, DeliveryNotePrintData, CopyType } from '@/lib/pdf/types';
 import { COPY_LABELS } from '@/lib/pdf/types';
 
 function esc(s: string | null | undefined): string {
@@ -24,6 +24,17 @@ const SHARED_STYLE = `
   .h-sub { margin-top: 3px; font-size: 0.95em; color: #333; }
 `;
 
+interface RepeatingHeaderInput {
+  docTitle: string;
+  docNumberLabel: string;
+  copyType: CopyType;
+  customerName: string;
+  company: QuotationPrintData['company'];
+  dateLabel: string;
+  dateValue: string;
+  showCopyBadge: boolean;
+}
+
 /**
  * Puppeteer's page header/footer templates render in an isolated document
  * that cannot see the main page's stylesheets or web fonts - only inline
@@ -34,10 +45,14 @@ const SHARED_STYLE = `
  * logo / company name / document number / customer name on every page).
  * It mirrors the company's real paper quotation header layout so pages
  * 2+ look consistent with page 1 rather than showing a plain one-liner.
+ *
+ * Shared by all document types (Quotation, Invoice, Tax Invoice, Receipt,
+ * Receipt/Tax Invoice, Delivery Note) so they render a consistent header -
+ * only the title text and doc-number field differ per type.
  */
-export function buildRepeatingHeaderHtml(data: QuotationPrintData): string {
-  const copyLabel = COPY_LABELS[data.copyType];
-  const logo = data.company.logoDataUri ? `<img src="${data.company.logoDataUri}" alt="" />` : '';
+function buildHeaderHtml(input: RepeatingHeaderInput): string {
+  const copyLabel = COPY_LABELS[input.copyType];
+  const logo = input.company.logoDataUri ? `<img src="${input.company.logoDataUri}" alt="" />` : '';
 
   return `
     <style>${SHARED_STYLE}</style>
@@ -46,57 +61,63 @@ export function buildRepeatingHeaderHtml(data: QuotationPrintData): string {
         <div class="h-company">
           ${logo}
           <div>
-            <div class="h-name-th">${esc(data.company.nameTh)}</div>
-            <div class="h-name-en">${esc(data.company.nameEn)}</div>
-            <div class="h-meta">Tel: ${esc(data.company.phone)}</div>
-            <div class="h-taxid">เลขประจำตัวผู้เสียภาษีอากร (TAX ID.) ${esc(data.company.taxId)}</div>
+            <div class="h-name-th">${esc(input.company.nameTh)}</div>
+            <div class="h-name-en">${esc(input.company.nameEn)}</div>
+            <div class="h-meta">Tel: ${esc(input.company.phone)}</div>
+            <div class="h-taxid">เลขประจำตัวผู้เสียภาษีอากร (TAX ID.) ${esc(input.company.taxId)}</div>
           </div>
         </div>
         <div class="h-doc">
-          <div class="h-title">${esc(data.docTitle)}/Quotation</div>
-          <div class="h-badge">${esc(copyLabel.th)} / ${esc(copyLabel.en)}</div>
+          <div class="h-title">${esc(input.docTitle)}</div>
+          ${input.showCopyBadge ? `<div class="h-badge">${esc(copyLabel.th)} / ${esc(copyLabel.en)}</div>` : ''}
           <table class="h-table">
             <tr>
-              <td class="k">วันที่</td><td>${esc(data.quoteDate)}</td>
-              <td class="k">เลขที่</td><td>${esc(data.docNumber)}${data.revisionNo > 0 ? ' Rev.' + data.revisionNo : ''}</td>
+              <td class="k">${esc(input.dateLabel)}</td><td>${esc(input.dateValue)}</td>
+              <td class="k">เลขที่</td><td>${esc(input.docNumberLabel)}</td>
             </tr>
           </table>
         </div>
       </div>
-      <div class="h-sub">ลูกค้า: ${esc(data.customer.name)}</div>
+      <div class="h-sub">ลูกค้า: ${esc(input.customerName)}</div>
     </div>
   `;
 }
 
-export function buildInvoiceRepeatingHeaderHtml(data: InvoicePrintData): string {
-  const copyLabel = COPY_LABELS[data.copyType];
-  const logo = data.company.logoDataUri ? `<img src="${data.company.logoDataUri}" alt="" />` : '';
+export function buildRepeatingHeaderHtml(data: QuotationPrintData): string {
+  return buildHeaderHtml({
+    docTitle: `${data.docTitle}/Quotation`,
+    docNumberLabel: `${data.docNumber}${data.revisionNo > 0 ? ' Rev.' + data.revisionNo : ''}`,
+    copyType: data.copyType,
+    customerName: data.customer.name,
+    company: data.company,
+    dateLabel: 'วันที่',
+    dateValue: data.quoteDate,
+    showCopyBadge: true,
+  });
+}
 
-  return `
-    <style>${SHARED_STYLE}</style>
-    <div class="h-wrap">
-      <div class="h-row">
-        <div class="h-company">
-          ${logo}
-          <div>
-            <div class="h-name-th">${esc(data.company.nameTh)}</div>
-            <div class="h-name-en">${esc(data.company.nameEn)}</div>
-            <div class="h-meta">Tel: ${esc(data.company.phone)}</div>
-            <div class="h-taxid">เลขประจำตัวผู้เสียภาษีอากร (TAX ID.) ${esc(data.company.taxId)}</div>
-          </div>
-        </div>
-        <div class="h-doc">
-          <div class="h-title">${esc(data.docTitle)}</div>
-          <div class="h-badge">${esc(copyLabel.th)} / ${esc(copyLabel.en)}</div>
-          <table class="h-table">
-            <tr>
-              <td class="k">วันที่</td><td>${esc(data.issueDate)}</td>
-              <td class="k">เลขที่</td><td>${esc(data.docNumber)}</td>
-            </tr>
-          </table>
-        </div>
-      </div>
-      <div class="h-sub">ลูกค้า: ${esc(data.customer.name)}</div>
-    </div>
-  `;
+export function buildInvoiceRepeatingHeaderHtml(data: InvoicePrintData): string {
+  return buildHeaderHtml({
+    docTitle: data.docTitle,
+    docNumberLabel: data.docNumber,
+    copyType: data.copyType,
+    customerName: data.customer.name,
+    company: data.company,
+    dateLabel: 'วันที่',
+    dateValue: data.issueDate,
+    showCopyBadge: true,
+  });
+}
+
+export function buildDeliveryNoteRepeatingHeaderHtml(data: DeliveryNotePrintData): string {
+  return buildHeaderHtml({
+    docTitle: `${data.docTitle}/Delivery Note`,
+    docNumberLabel: data.docNumber,
+    copyType: data.copyType,
+    customerName: data.customer.name,
+    company: data.company,
+    dateLabel: 'วันที่ส่งของ',
+    dateValue: data.deliveryDate,
+    showCopyBadge: true,
+  });
 }

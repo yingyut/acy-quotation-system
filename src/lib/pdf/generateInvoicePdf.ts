@@ -1,16 +1,16 @@
 import { PDFDocument } from 'pdf-lib';
 import { signPrintToken } from '@/lib/printToken';
-import { renderUrlToPdf, buildInternalPrintUrl } from '@/lib/pdf/generatePdf';
+import { renderUrlToPdf, buildInternalPrintUrl, PRINT_MARGINS } from '@/lib/pdf/generatePdf';
 import { buildInvoicePrintData } from '@/lib/pdf/buildInvoicePrintData';
 import { buildInvoiceRepeatingHeaderHtml } from '@/lib/pdf/headerTemplate';
 import type { CopyType } from '@/lib/pdf/types';
 
 export async function generateInvoicePdf(invoiceId: string, userId: string, copyTypes: CopyType[]): Promise<Buffer> {
   const marginOptions = {
-    marginTopMm: 15 + 30, // reserve room for the repeating header (see headerTemplate.ts)
-    marginRightMm: 12,
-    marginBottomMm: 15,
-    marginLeftMm: 12,
+    marginTopMm: PRINT_MARGINS.topMm,
+    marginRightMm: PRINT_MARGINS.sideMm,
+    marginBottomMm: PRINT_MARGINS.bottomMm,
+    marginLeftMm: PRINT_MARGINS.sideMm,
     showPageNumber: true,
   };
 

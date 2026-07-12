@@ -95,6 +95,31 @@ export interface InvoicePrintData {
   template: PrintTemplateConfig;
 }
 
+export interface DeliveryNoteItem {
+  no: number;
+  code: string | null;
+  name: string;
+  description: string | null;
+  qty: number;
+  unit: string | null;
+}
+
+export interface DeliveryNotePrintData {
+  docTitle: string;
+  docNumber: string;
+  copyType: CopyType;
+  deliveryDate: string;
+  salesOrderDocNumber: string;
+  quotationDocNumber: string | null;
+  company: PrintCompany;
+  customer: PrintCustomer;
+  items: DeliveryNoteItem[];
+  note: string | null;
+  receivedByName: string | null;
+  preparedByName: string;
+  template: PrintTemplateConfig;
+}
+
 export interface QuotationPrintData {
   docTitle: string; // e.g. "ใบเสนอราคา"
   docNumber: string;
