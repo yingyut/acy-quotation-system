@@ -7,7 +7,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ChangeMe_StrongPassword!}
       POSTGRES_DB: ${POSTGRES_DB:-acy_quotation}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # Bound to localhost only - the database must never be reachable
+      # from the LAN, only the app container (over the internal Docker
+      # network) and local admin tooling on this host should reach it.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
