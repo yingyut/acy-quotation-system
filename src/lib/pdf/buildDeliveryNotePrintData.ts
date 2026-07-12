@@ -1,22 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { fileToDataUri } from '@/lib/storage';
-import type { CopyType, DeliveryNotePrintData, PrintTemplateConfig } from '@/lib/pdf/types';
-
-const DEFAULT_TEMPLATE: PrintTemplateConfig = {
-  logoPosition: 'LEFT',
-  headerColor: '#0F4C81',
-  fontSizeBase: 10,
-  marginTopMm: 15,
-  marginRightMm: 12,
-  marginBottomMm: 15,
-  marginLeftMm: 12,
-  showProductCode: true,
-  showUnitPrice: false,
-  showDiscountColumn: false,
-  productImageMode: 'NONE',
-  showPageNumber: true,
-  isLumpSum: false,
-};
+import { resolveTemplateConfig } from '@/lib/pdf/resolveTemplateConfig';
+import type { CopyType, DocumentPrintData, PrintLineItem } from '@/lib/pdf/types';
 
 function formatThaiDate(date: Date): string {
   return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -25,7 +10,7 @@ function formatThaiDate(date: Date): string {
 export async function buildDeliveryNotePrintData(
   deliveryNoteId: string,
   copyType: CopyType,
-): Promise<DeliveryNotePrintData> {
+): Promise<DocumentPrintData> {
   const deliveryNote = await prisma.deliveryNote.findUniqueOrThrow({
     where: { id: deliveryNoteId },
     include: {
@@ -46,13 +31,39 @@ export async function buildDeliveryNotePrintData(
 
   const customer = deliveryNote.salesOrder.quotation.customer;
 
+  const items: PrintLineItem[] = deliveryNote.items.map((item, idx) => ({
+    no: idx + 1,
+    itemType: 'PRODUCT',
+    code: item.code,
+    name: item.name,
+    description: item.description,
+    imageDataUri: null,
+    qty: Number(item.qty),
+    unit: item.unit,
+    unitPrice: 0,
+    discountLabel: null,
+    lineTotal: 0,
+    hideUnitPrice: true,
+  }));
+
+  const config = await resolveTemplateConfig('DELIVERY_NOTE');
+
   return {
-    docTitle: 'ใบส่งสินค้า',
+    docTypeKey: 'DELIVERY_NOTE',
+    docTitleTh: 'ใบส่งสินค้า',
+    docTitleEn: 'Delivery Note',
     docNumber: deliveryNote.docNumber,
+    revisionNo: null,
     copyType,
-    deliveryDate: formatThaiDate(deliveryNote.deliveryDate),
-    salesOrderDocNumber: deliveryNote.salesOrder.docNumber,
-    quotationDocNumber: deliveryNote.salesOrder.quotation.docNumber,
+    issueDateLabel: 'วันที่ส่งของ',
+    issueDate: formatThaiDate(deliveryNote.deliveryDate),
+    dueDate: null,
+    validUntilDate: null,
+    deliveryTerms: null,
+    paymentTerms: null,
+    creditTermDays: null,
+    projectName: null,
+    title: null,
     company: {
       nameTh: company.nameTh,
       nameEn: company.nameEn,
@@ -85,17 +96,27 @@ export async function buildDeliveryNotePrintData(
       branchCode: customer.branchCode,
       contactName: customer.contactName,
     },
-    items: deliveryNote.items.map((item, idx) => ({
-      no: idx + 1,
-      code: item.code,
-      name: item.name,
-      description: item.description,
-      qty: Number(item.qty),
-      unit: item.unit,
-    })),
+    items,
+    subtotal: 0,
+    totalDiscount: 0,
+    amountAfterDiscount: 0,
+    vatEnabled: false,
+    vatRate: 0,
+    vatAmount: 0,
+    whtEnabled: false,
+    whtRate: 0,
+    whtAmount: 0,
+    netTotal: 0,
+    amountInWordsTh: '',
     note: deliveryNote.note,
-    receivedByName: deliveryNote.receivedByName,
     preparedByName: deliveryNote.salesOrder.quotation.preparedBy.fullName,
-    template: DEFAULT_TEMPLATE,
+    approvedByName: null,
+    paidAmount: null,
+    balanceAmount: null,
+    quotationDocNumber: deliveryNote.salesOrder.quotation.docNumber,
+    salesOrderDocNumber: deliveryNote.salesOrder.docNumber,
+    receivedByName: deliveryNote.receivedByName,
+    paymentInfo: null,
+    config,
   };
 }

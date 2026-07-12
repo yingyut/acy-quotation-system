@@ -1,8 +1,9 @@
 import puppeteer, { type Browser } from 'puppeteer';
+import type { DocumentTemplateConfig } from '@/lib/pdf/templateConfig';
 
 let browserPromise: Promise<Browser> | null = null;
 
-async function getBrowser(): Promise<Browser> {
+export async function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
     browserPromise = puppeteer.launch({
       headless: true,
@@ -12,37 +13,6 @@ async function getBrowser(): Promise<Browser> {
   }
   return browserPromise;
 }
-
-export interface RenderPdfOptions {
-  marginTopMm: number;
-  marginRightMm: number;
-  marginBottomMm: number;
-  marginLeftMm: number;
-  showPageNumber: boolean;
-  landscape?: boolean;
-  /** Raw HTML repeated at the top of every printed page (logo, company
-   *  name, doc number, customer name) - see src/lib/pdf/headerTemplate.ts. */
-  headerHtml?: string;
-}
-
-/**
- * Shared page margins for all print templates (Quotation/Invoice/Tax
- * Invoice/Receipt/Delivery Note). `topMm` is sized to closely match the
- * *actual rendered height* of the repeating header built in
- * headerTemplate.ts (~19-20mm for the 4-line company block + customer
- * line) plus a couple mm of breathing room - Chromium reserves exactly
- * `margin.top` for the header and starts body content right after it, so
- * a value larger than the header's real height creates a dead gap above
- * the body (the bug reported against the previous 45mm reservation), and
- * a value smaller than it clips the header. If the header content is
- * ever changed, re-measure against real PDF output rather than guessing.
- * Side/bottom margins follow the requested ~8-10mm print margin.
- */
-export const PRINT_MARGINS = {
-  topMm: 26,
-  sideMm: 10,
-  bottomMm: 10,
-};
 
 /** Base URL the PDF worker uses to reach this same Next.js server. In
  *  Docker this is the container's own loopback (the app listens on
@@ -56,28 +26,26 @@ export function buildInternalPrintUrl(path: string): string {
   return `${internalBaseUrl()}${path}`;
 }
 
-export async function renderUrlToPdf(url: string, options: RenderPdfOptions): Promise<Buffer> {
+/**
+ * Renders a URL that already carries a fully computed PageModel (see
+ * pageComposer.ts / measurePages.ts) - i.e. the page has manually composed
+ * `.a4-page` divs, each with its own baked-in header/margins/footer. No
+ * Chromium margin or headerTemplate reservation is used here (that
+ * mechanism is what the old fixed-template pipeline relied on); each
+ * `.a4-page` div supplies its own padding, so this simply prints the
+ * already-paginated document as-is.
+ */
+export async function renderPagedPdf(url: string, config: DocumentTemplateConfig): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
     const pdf = await page.pdf({
       format: 'A4',
-      landscape: options.landscape ?? false,
+      landscape: config.general.orientation === 'landscape',
       printBackground: true,
-      margin: {
-        top: `${options.marginTopMm}mm`,
-        right: `${options.marginRightMm}mm`,
-        bottom: `${options.marginBottomMm + (options.showPageNumber ? 6 : 0)}mm`,
-        left: `${options.marginLeftMm}mm`,
-      },
-      displayHeaderFooter: true,
-      headerTemplate: options.headerHtml ?? '<div></div>',
-      footerTemplate: options.showPageNumber
-        ? `<div style="width:100%;font-size:8px;text-align:center;color:#888;font-family:sans-serif;">
-             หน้า <span class="pageNumber"></span> / <span class="totalPages"></span>
-           </div>`
-        : '<div></div>',
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+      displayHeaderFooter: false,
     });
     return Buffer.from(pdf);
   } finally {

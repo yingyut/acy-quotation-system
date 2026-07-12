@@ -757,6 +757,12 @@ model DocumentTemplate {
   isLumpSum             Boolean  @default(false)
   columnConfig          Json     @default("{}")
   footerText            String?  @db.Text
+  // Structured, Zod-validated layout configuration (see
+  // src/lib/pdf/templateConfig.ts) - the source of truth for the
+  // configurable Template Editor / DocumentRenderer pipeline. The flat
+  // fields above are kept for backward compatibility with pre-existing
+  // rows but are no longer written to by the new Template Editor.
+  config                Json?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

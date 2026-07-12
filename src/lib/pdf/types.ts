@@ -1,3 +1,5 @@
+import type { DocumentTemplateConfig } from '@/lib/pdf/templateConfig';
+
 export interface PrintCompany {
   nameTh: string;
   nameEn: string;
@@ -42,22 +44,6 @@ export interface PrintLineItem {
   hideUnitPrice: boolean;
 }
 
-export interface PrintTemplateConfig {
-  logoPosition: string;
-  headerColor: string;
-  fontSizeBase: number;
-  marginTopMm: number;
-  marginRightMm: number;
-  marginBottomMm: number;
-  marginLeftMm: number;
-  showProductCode: boolean;
-  showUnitPrice: boolean;
-  showDiscountColumn: boolean;
-  productImageMode: 'NONE' | 'SMALL' | 'MEDIUM' | 'FULL';
-  showPageNumber: boolean;
-  isLumpSum: boolean;
-}
-
 export type CopyType = 'ORIGINAL' | 'COPY_CUSTOMER' | 'COPY_ACCOUNTING' | 'COPY_WAREHOUSE' | 'COPY_SALES';
 
 export const COPY_LABELS: Record<CopyType, { th: string; en: string }> = {
@@ -68,68 +54,27 @@ export const COPY_LABELS: Record<CopyType, { th: string; en: string }> = {
   COPY_SALES: { th: 'สำเนาฝ่ายขาย', en: 'COPY (SALES)' },
 };
 
-export interface InvoicePrintData {
-  docTitle: string;
-  docType: string;
+/**
+ * Unified print-data shape consumed by the shared block components and
+ * DocumentRenderer (src/components/print/DocumentRenderer.tsx). One shape
+ * for Quotation/Invoice/TaxInvoice/Receipt/DeliveryNote means the same
+ * components render every document type - only field values and the
+ * `config` differ, never the component tree.
+ */
+export interface DocumentPrintData {
+  docTypeKey: 'QUOTATION' | 'INVOICE' | 'TAX_INVOICE' | 'RECEIPT' | 'RECEIPT_TAX_INVOICE' | 'DELIVERY_NOTE' | 'CREDIT_NOTE' | 'DEBIT_NOTE';
+  docTitleTh: string;
+  docTitleEn: string;
   docNumber: string;
+  revisionNo: number | null;
   copyType: CopyType;
+  issueDateLabel: string;
   issueDate: string;
   dueDate: string | null;
-  company: PrintCompany;
-  customer: PrintCustomer;
-  items: PrintLineItem[];
-  subtotal: number;
-  totalDiscount: number;
-  amountAfterDiscount: number;
-  vatRate: number;
-  vatAmount: number;
-  whtRate: number;
-  whtAmount: number;
-  netTotal: number;
-  amountInWordsTh: string;
-  paidAmount: number;
-  balanceAmount: number;
-  quotationDocNumber: string | null;
-  preparedByName: string;
-  paymentInfo: { paidDate: string; method: string; refNumber: string | null } | null;
-  template: PrintTemplateConfig;
-}
-
-export interface DeliveryNoteItem {
-  no: number;
-  code: string | null;
-  name: string;
-  description: string | null;
-  qty: number;
-  unit: string | null;
-}
-
-export interface DeliveryNotePrintData {
-  docTitle: string;
-  docNumber: string;
-  copyType: CopyType;
-  deliveryDate: string;
-  salesOrderDocNumber: string;
-  quotationDocNumber: string | null;
-  company: PrintCompany;
-  customer: PrintCustomer;
-  items: DeliveryNoteItem[];
-  note: string | null;
-  receivedByName: string | null;
-  preparedByName: string;
-  template: PrintTemplateConfig;
-}
-
-export interface QuotationPrintData {
-  docTitle: string; // e.g. "ใบเสนอราคา"
-  docNumber: string;
-  revisionNo: number;
-  copyType: CopyType;
-  quoteDate: string;
-  validUntilDate: string;
+  validUntilDate: string | null;
   deliveryTerms: string | null;
   paymentTerms: string | null;
-  creditTermDays: number;
+  creditTermDays: number | null;
   projectName: string | null;
   title: string | null;
   company: PrintCompany;
@@ -149,5 +94,11 @@ export interface QuotationPrintData {
   note: string | null;
   preparedByName: string;
   approvedByName: string | null;
-  template: PrintTemplateConfig;
+  paidAmount: number | null;
+  balanceAmount: number | null;
+  quotationDocNumber: string | null;
+  salesOrderDocNumber: string | null;
+  receivedByName: string | null;
+  paymentInfo: { paidDate: string; method: string; refNumber: string | null } | null;
+  config: DocumentTemplateConfig;
 }

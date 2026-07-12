@@ -1,23 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { fileToDataUri } from '@/lib/storage';
 import { round2 } from '@/lib/money';
-import type { CopyType, PrintTemplateConfig, QuotationPrintData, PrintLineItem } from '@/lib/pdf/types';
-
-const DEFAULT_TEMPLATE: PrintTemplateConfig = {
-  logoPosition: 'LEFT',
-  headerColor: '#0F4C81',
-  fontSizeBase: 10,
-  marginTopMm: 15,
-  marginRightMm: 12,
-  marginBottomMm: 15,
-  marginLeftMm: 12,
-  showProductCode: true,
-  showUnitPrice: true,
-  showDiscountColumn: true,
-  productImageMode: 'NONE',
-  showPageNumber: true,
-  isLumpSum: false,
-};
+import { resolveTemplateConfig } from '@/lib/pdf/resolveTemplateConfig';
+import type { CopyType, DocumentPrintData, PrintLineItem } from '@/lib/pdf/types';
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
@@ -29,10 +14,7 @@ function formatThaiDate(date: Date): string {
   return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-export async function buildQuotationPrintData(
-  quotationId: string,
-  copyType: CopyType,
-): Promise<QuotationPrintData> {
+export async function buildQuotationPrintData(quotationId: string, copyType: CopyType): Promise<DocumentPrintData> {
   const quotation = await prisma.quotation.findUniqueOrThrow({
     where: { id: quotationId },
     include: {
@@ -88,30 +70,18 @@ export async function buildQuotationPrintData(
     });
   }
 
-  const template: PrintTemplateConfig = quotation.template
-    ? {
-        logoPosition: quotation.template.logoPosition,
-        headerColor: quotation.template.headerColor,
-        fontSizeBase: quotation.template.fontSizeBase,
-        marginTopMm: quotation.template.marginTopMm,
-        marginRightMm: quotation.template.marginRightMm,
-        marginBottomMm: quotation.template.marginBottomMm,
-        marginLeftMm: quotation.template.marginLeftMm,
-        showProductCode: quotation.template.showProductCode,
-        showUnitPrice: quotation.template.showUnitPrice,
-        showDiscountColumn: quotation.template.showDiscountColumn,
-        productImageMode: quotation.template.productImageMode as PrintTemplateConfig['productImageMode'],
-        showPageNumber: quotation.template.showPageNumber,
-        isLumpSum: quotation.template.isLumpSum,
-      }
-    : DEFAULT_TEMPLATE;
+  const config = await resolveTemplateConfig('QUOTATION', quotation.templateId);
 
   return {
-    docTitle: 'ใบเสนอราคา',
+    docTypeKey: 'QUOTATION',
+    docTitleTh: 'ใบเสนอราคา',
+    docTitleEn: 'Quotation',
     docNumber: quotation.docNumber,
     revisionNo: quotation.revisionNo,
     copyType,
-    quoteDate: formatThaiDate(quotation.quoteDate),
+    issueDateLabel: 'วันที่',
+    issueDate: formatThaiDate(quotation.quoteDate),
+    dueDate: null,
     validUntilDate: formatThaiDate(addDays(quotation.quoteDate, quotation.validUntilDays)),
     deliveryTerms: quotation.deliveryTerms,
     paymentTerms: quotation.paymentTerms,
@@ -165,6 +135,12 @@ export async function buildQuotationPrintData(
     note: quotation.note,
     preparedByName: quotation.preparedBy.fullName,
     approvedByName: quotation.approvedBy?.fullName ?? null,
-    template,
+    paidAmount: null,
+    balanceAmount: null,
+    quotationDocNumber: null,
+    salesOrderDocNumber: null,
+    receivedByName: null,
+    paymentInfo: null,
+    config,
   };
 }

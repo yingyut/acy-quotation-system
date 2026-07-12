@@ -1,31 +1,25 @@
 import { prisma } from '@/lib/prisma';
 import { fileToDataUri } from '@/lib/storage';
 import { round2 } from '@/lib/money';
-import type { CopyType, InvoicePrintData, PrintTemplateConfig, PrintLineItem } from '@/lib/pdf/types';
+import { resolveTemplateConfig } from '@/lib/pdf/resolveTemplateConfig';
+import type { CopyType, DocumentPrintData, PrintLineItem } from '@/lib/pdf/types';
 
-const DEFAULT_TEMPLATE: PrintTemplateConfig = {
-  logoPosition: 'LEFT',
-  headerColor: '#0F4C81',
-  fontSizeBase: 10,
-  marginTopMm: 15,
-  marginRightMm: 12,
-  marginBottomMm: 15,
-  marginLeftMm: 12,
-  showProductCode: true,
-  showUnitPrice: true,
-  showDiscountColumn: true,
-  productImageMode: 'NONE',
-  showPageNumber: true,
-  isLumpSum: false,
-};
-
-const DOC_TITLES: Record<string, string> = {
+const DOC_TITLES_TH: Record<string, string> = {
   INVOICE: 'ใบแจ้งหนี้',
   TAX_INVOICE: 'ใบแจ้งหนี้ / ใบกำกับภาษี',
   RECEIPT: 'ใบเสร็จรับเงิน',
   RECEIPT_TAX_INVOICE: 'ใบเสร็จรับเงิน / ใบกำกับภาษี',
   CREDIT_NOTE: 'ใบลดหนี้',
   DEBIT_NOTE: 'ใบเพิ่มหนี้',
+};
+
+const DOC_TITLES_EN: Record<string, string> = {
+  INVOICE: 'Invoice',
+  TAX_INVOICE: 'Invoice / Tax Invoice',
+  RECEIPT: 'Receipt',
+  RECEIPT_TAX_INVOICE: 'Receipt / Tax Invoice',
+  CREDIT_NOTE: 'Credit Note',
+  DEBIT_NOTE: 'Debit Note',
 };
 
 const PAYMENT_METHOD_TH: Record<string, string> = {
@@ -41,7 +35,7 @@ function formatThaiDate(date: Date | null): string {
   return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-export async function buildInvoicePrintData(invoiceId: string, copyType: CopyType): Promise<InvoicePrintData> {
+export async function buildInvoicePrintData(invoiceId: string, copyType: CopyType): Promise<DocumentPrintData> {
   const invoice = await prisma.invoice.findUniqueOrThrow({
     where: { id: invoiceId },
     include: {
@@ -92,13 +86,24 @@ export async function buildInvoicePrintData(invoiceId: string, copyType: CopyTyp
   const lastPayment = invoice.payments[0];
   const isReceiptType = invoice.docType === 'RECEIPT' || invoice.docType === 'RECEIPT_TAX_INVOICE';
 
+  const config = await resolveTemplateConfig(invoice.docType);
+
   return {
-    docTitle: DOC_TITLES[invoice.docType] ?? invoice.docType,
-    docType: invoice.docType,
+    docTypeKey: invoice.docType as DocumentPrintData['docTypeKey'],
+    docTitleTh: DOC_TITLES_TH[invoice.docType] ?? invoice.docType,
+    docTitleEn: DOC_TITLES_EN[invoice.docType] ?? invoice.docType,
     docNumber: invoice.docNumber,
+    revisionNo: null,
     copyType,
+    issueDateLabel: 'วันที่',
     issueDate: formatThaiDate(invoice.issueDate),
     dueDate: invoice.dueDate ? formatThaiDate(invoice.dueDate) : null,
+    validUntilDate: null,
+    deliveryTerms: null,
+    paymentTerms: null,
+    creditTermDays: null,
+    projectName: null,
+    title: null,
     company: {
       nameTh: company.nameTh,
       nameEn: company.nameEn,
@@ -135,16 +140,22 @@ export async function buildInvoicePrintData(invoiceId: string, copyType: CopyTyp
     subtotal: round2(invoice.subtotal),
     totalDiscount: round2(invoice.totalDiscount),
     amountAfterDiscount: round2(invoice.amountAfterDiscount),
+    vatEnabled: true,
     vatRate: Number(invoice.vatRate),
     vatAmount: round2(invoice.vatAmount),
+    whtEnabled: Number(invoice.whtRate) > 0,
     whtRate: Number(invoice.whtRate),
     whtAmount: round2(invoice.whtAmount),
     netTotal: round2(invoice.netTotal),
     amountInWordsTh: invoice.amountInWordsTh ?? '',
+    note: null,
+    preparedByName: invoice.createdBy.fullName,
+    approvedByName: null,
     paidAmount: round2(invoice.paidAmount),
     balanceAmount: round2(invoice.balanceAmount),
     quotationDocNumber: invoice.quotation?.docNumber ?? null,
-    preparedByName: invoice.createdBy.fullName,
+    salesOrderDocNumber: null,
+    receivedByName: null,
     paymentInfo:
       isReceiptType && lastPayment
         ? {
@@ -153,6 +164,6 @@ export async function buildInvoicePrintData(invoiceId: string, copyType: CopyTyp
             refNumber: lastPayment.refNumber,
           }
         : null,
-    template: DEFAULT_TEMPLATE,
+    config,
   };
 }
