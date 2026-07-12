@@ -7,7 +7,7 @@ import puppeteer from 'puppeteer';
 
 const BASE_URL = process.env.E2E_BASE_URL || 'http://127.0.0.1:3000';
 const USERNAME = process.env.E2E_USERNAME || 'admin';
-const PASSWORD = process.env.E2E_PASSWORD || 'Admin@12345';
+const PASSWORD = process.env.E2E_PASSWORD || 'P@ssw0rd';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(`ASSERTION FAILED: ${message}`);

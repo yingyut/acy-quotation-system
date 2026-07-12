@@ -5,4 +5,7 @@ storage/uploads
 storage/backups
 storage/pdf
 *.md
+.env
 .env.local
+.env.*.local
+!.env.example
