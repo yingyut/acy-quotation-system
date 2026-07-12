@@ -1,0 +1,860 @@
+// ACY Quotation & Accounting Document System — Database Schema
+// PostgreSQL + Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================================
+// Users, Roles, Permissions
+// =========================================================
+
+enum RoleKey {
+  ADMIN
+  SALES
+  SALES_MANAGER
+  ACCOUNTING
+  VIEWER
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  key         RoleKey          @unique
+  name        String
+  description String?
+  permissions RolePermission[]
+  users       User[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique // e.g. "quotation.view_cost"
+  group       String // e.g. "quotation"
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  email              String?   @unique
+  passwordHash       String
+  fullName           String
+  roleId             String
+  role               Role      @relation(fields: [roleId], references: [id])
+  canViewCost        Boolean   @default(false) // extra grant for Sales users, ignored for roles that already include it
+  isActive           Boolean   @default(true)
+  lastLoginAt        DateTime?
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime?
+  mustChangePassword Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  preparedQuotations Quotation[]   @relation("QuotationPreparedBy")
+  approvedQuotations Quotation[]   @relation("QuotationApprovedBy")
+  createdCustomers   Customer[]
+  auditLogs          AuditLog[]
+  loginLogs          LoginLog[]
+  approvalActions    ApprovalLog[] @relation("ApprovalActor")
+  approvalRequests   ApprovalLog[] @relation("ApprovalRequester")
+  attachments        Attachment[]
+  backupsTriggered   Backup[]
+  paymentsRecorded   Payment[]
+  invoicesCreated    Invoice[]
+
+  @@map("users")
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  username  String
+  success   Boolean
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([username])
+  @@map("login_logs")
+}
+
+// =========================================================
+// Company / Branch
+// =========================================================
+
+model Company {
+  id                     String   @id @default(cuid())
+  nameTh                 String
+  nameEn                 String
+  taxId                  String
+  addressTh              String
+  phone                  String?
+  email                  String?
+  website                String?
+  logoUrl                String?
+  stampUrl               String?
+  authorizedSignatureUrl String?
+  preparedSignatureUrl   String?
+  standardTerms          String?  @db.Text
+  footerText             String?  @db.Text
+  primaryColor           String   @default("#0F4C81")
+  headerLayout           String   @default("STANDARD")
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  branches     Branch[]
+  bankAccounts BankAccount[]
+
+  @@map("companies")
+}
+
+model BankAccount {
+  id            String  @id @default(cuid())
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bankName      String
+  accountName   String
+  accountNumber String
+  branchName    String?
+  isDefault     Boolean @default(false)
+
+  @@map("bank_accounts")
+}
+
+model Branch {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code         String
+  name         String
+  address      String?
+  isHeadOffice Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([companyId, code])
+  @@map("branches")
+}
+
+// =========================================================
+// Customers
+// =========================================================
+
+enum CustomerType {
+  COMPANY
+  INDIVIDUAL
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Customer {
+  id                     String         @id @default(cuid())
+  code                   String         @unique
+  type                   CustomerType   @default(COMPANY)
+  name                   String
+  contactName            String?
+  address                String?
+  province               String?
+  postalCode             String?
+  phone                  String?
+  email                  String?
+  lineId                 String?
+  taxId                  String?        @unique
+  isHeadOffice           Boolean        @default(true)
+  branchName             String?
+  branchCode             String?
+  creditTermDays         Int            @default(0)
+  defaultDiscountPercent Decimal        @default(0) @db.Decimal(6, 2)
+  note                   String?        @db.Text
+  status                 CustomerStatus @default(ACTIVE)
+  createdById            String?
+  createdBy              User?          @relation(fields: [createdById], references: [id])
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  deletedAt              DateTime?
+
+  contacts   CustomerContact[]
+  quotations Quotation[]
+  invoices   Invoice[]
+
+  @@index([name])
+  @@index([taxId])
+  @@map("customers")
+}
+
+model CustomerContact {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  position   String?
+  phone      String?
+  email      String?
+  isPrimary  Boolean  @default(false)
+
+  @@map("customer_contacts")
+}
+
+// =========================================================
+// Products / Services
+// =========================================================
+
+model Supplier {
+  id          String    @id @default(cuid())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  note        String?
+  products    Product[]
+
+  @@map("suppliers")
+}
+
+model ProductCategory {
+  id       String            @id @default(cuid())
+  name     String
+  parentId String?
+  parent   ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("CategoryTree")
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model Product {
+  id                String           @id @default(cuid())
+  code              String           @unique
+  sku               String?
+  barcode           String?
+  name              String
+  nameEn            String?
+  brand             String?
+  model             String?
+  categoryId        String?
+  category          ProductCategory? @relation(fields: [categoryId], references: [id])
+  unit              String           @default("ชิ้น")
+  description       String?          @db.Text
+  techSpec          String?          @db.Text
+  countryOfOrigin   String?
+  manufacturerUrl   String?
+  supplierId        String?
+  supplier          Supplier?        @relation(fields: [supplierId], references: [id])
+  costPrice         Decimal          @default(0) @db.Decimal(14, 2)
+  installCostPrice  Decimal          @default(0) @db.Decimal(14, 2)
+  sellPrice         Decimal          @default(0) @db.Decimal(14, 2)
+  installSellPrice  Decimal          @default(0) @db.Decimal(14, 2)
+  standardSellPrice Decimal          @default(0) @db.Decimal(14, 2)
+  laborCost         Decimal          @default(0) @db.Decimal(14, 2)
+  shippingCost      Decimal          @default(0) @db.Decimal(14, 2)
+  warrantyText      String?
+  internalNote      String?          @db.Text
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  deletedAt         DateTime?
+
+  images         ProductImage[]
+  specs          ProductSpec[]
+  priceHistory   ProductPriceHistory[]
+  quotationItems QuotationItem[]
+
+  @@index([name])
+  @@index([sku])
+  @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  isPrimary Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@map("product_images")
+}
+
+model ProductSpec {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label     String
+  value     String
+  sortOrder Int     @default(0)
+
+  @@map("product_specs")
+}
+
+model ProductPriceHistory {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  field     String
+  oldValue  String?
+  newValue  String?
+  changedBy String?
+  changedAt DateTime @default(now())
+
+  @@map("product_price_history")
+}
+
+// =========================================================
+// Quotation
+// =========================================================
+
+enum QuotationStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+  WON
+  LOST
+}
+
+enum QuotationItemType {
+  PRODUCT
+  SERVICE
+  TEXT
+  HEADING
+  LUMP_SUM
+}
+
+model Quotation {
+  id               String            @id @default(cuid())
+  docNumber        String // shared across all revisions of the same quotation
+  revisionNo       Int               @default(0)
+  isLatestRevision Boolean           @default(true)
+  rootQuotationId  String? // points to revision 0's id; null on revision 0 itself
+  customerId       String
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  contactName      String?
+  projectName      String?
+  title            String?
+  quoteDate        DateTime          @default(now())
+  validUntilDays   Int               @default(30)
+  deliveryTerms    String?
+  creditTermDays   Int               @default(0)
+  paymentTerms     String?           @db.Text
+  templateId       String?
+  template         DocumentTemplate? @relation(fields: [templateId], references: [id])
+
+  subtotal            Decimal @default(0) @db.Decimal(14, 2)
+  totalDiscount       Decimal @default(0) @db.Decimal(14, 2)
+  amountAfterDiscount Decimal @default(0) @db.Decimal(14, 2)
+  vatRate             Decimal @default(7) @db.Decimal(6, 2)
+  vatEnabled          Boolean @default(true)
+  vatAmount           Decimal @default(0) @db.Decimal(14, 2)
+  whtEnabled          Boolean @default(false)
+  whtRate             Decimal @default(0) @db.Decimal(6, 2)
+  whtAmount           Decimal @default(0) @db.Decimal(14, 2)
+  netTotal            Decimal @default(0) @db.Decimal(14, 2)
+  amountInWordsTh     String?
+
+  totalCost        Decimal @default(0) @db.Decimal(14, 2)
+  totalProfit      Decimal @default(0) @db.Decimal(14, 2)
+  gpPercent        Decimal @default(0) @db.Decimal(6, 2)
+  markupPercent    Decimal @default(0) @db.Decimal(6, 2)
+  requiresApproval Boolean @default(false)
+  approvalReason   String?
+
+  status       QuotationStatus @default(DRAFT)
+  preparedById String
+  preparedBy   User            @relation("QuotationPreparedBy", fields: [preparedById], references: [id])
+  approvedById String?
+  approvedBy   User?           @relation("QuotationApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  note         String? @db.Text
+  lostReason   String?
+  cancelReason String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  items        QuotationItem[]
+  salesOrders  SalesOrder[]
+  invoices     Invoice[]
+  revisions    QuotationRevisionLog[]
+  approvalLogs ApprovalLog[]          @relation("QuotationApprovals")
+
+  @@unique([docNumber, revisionNo])
+  @@index([docNumber])
+  @@index([customerId])
+  @@index([status])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id              String            @id @default(cuid())
+  quotationId     String
+  quotation       Quotation         @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  sortOrder       Int               @default(0)
+  itemType        QuotationItemType @default(PRODUCT)
+  productId       String?
+  product         Product?          @relation(fields: [productId], references: [id])
+  code            String?
+  name            String
+  description     String?           @db.Text
+  specText        String?           @db.Text
+  imageUrl        String?
+  qty             Decimal           @default(1) @db.Decimal(12, 3)
+  unit            String?
+  unitPrice       Decimal           @default(0) @db.Decimal(14, 2)
+  unitCost        Decimal           @default(0) @db.Decimal(14, 2)
+  discountPercent Decimal           @default(0) @db.Decimal(6, 2)
+  discountAmount  Decimal           @default(0) @db.Decimal(14, 2)
+  lineTotal       Decimal           @default(0) @db.Decimal(14, 2)
+  lineCost        Decimal           @default(0) @db.Decimal(14, 2)
+  hideUnitPrice   Boolean           @default(false) // for LUMP_SUM rows: hide per-unit breakdown from customer
+  showImage       Boolean           @default(false)
+
+  @@map("quotation_items")
+}
+
+model QuotationRevisionLog {
+  id            String    @id @default(cuid())
+  quotationId   String
+  quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  revisionNo    Int
+  changeSummary String?   @db.Text
+  createdById   String?
+  createdAt     DateTime  @default(now())
+
+  @@map("quotation_revision_logs")
+}
+
+// =========================================================
+// Sales Order / Delivery Note
+// =========================================================
+
+enum SalesOrderStatus {
+  OPEN
+  DELIVERED
+  CANCELLED
+}
+
+model SalesOrder {
+  id          String           @id @default(cuid())
+  docNumber   String           @unique
+  quotationId String
+  quotation   Quotation        @relation(fields: [quotationId], references: [id])
+  orderDate   DateTime         @default(now())
+  status      SalesOrderStatus @default(OPEN)
+  note        String?          @db.Text
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deletedAt   DateTime?
+
+  items         SalesOrderItem[]
+  deliveryNotes DeliveryNote[]
+  invoices      Invoice[]
+
+  @@map("sales_orders")
+}
+
+model SalesOrderItem {
+  id              String            @id @default(cuid())
+  salesOrderId    String
+  salesOrder      SalesOrder        @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  sortOrder       Int               @default(0)
+  itemType        QuotationItemType @default(PRODUCT)
+  code            String?
+  name            String
+  description     String?           @db.Text
+  qty             Decimal           @default(1) @db.Decimal(12, 3)
+  unit            String?
+  unitPrice       Decimal           @default(0) @db.Decimal(14, 2)
+  discountPercent Decimal           @default(0) @db.Decimal(6, 2)
+  discountAmount  Decimal           @default(0) @db.Decimal(14, 2)
+  lineTotal       Decimal           @default(0) @db.Decimal(14, 2)
+
+  @@map("sales_order_items")
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  CANCELLED
+}
+
+model DeliveryNote {
+  id             String         @id @default(cuid())
+  docNumber      String         @unique
+  salesOrderId   String
+  salesOrder     SalesOrder     @relation(fields: [salesOrderId], references: [id])
+  deliveryDate   DateTime       @default(now())
+  status         DeliveryStatus @default(PENDING)
+  receivedByName String?
+  note           String?        @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  items    DeliveryNoteItem[]
+  invoices Invoice[]
+
+  @@map("delivery_notes")
+}
+
+model DeliveryNoteItem {
+  id             String       @id @default(cuid())
+  deliveryNoteId String
+  deliveryNote   DeliveryNote @relation(fields: [deliveryNoteId], references: [id], onDelete: Cascade)
+  sortOrder      Int          @default(0)
+  code           String?
+  name           String
+  description    String?      @db.Text
+  qty            Decimal      @default(1) @db.Decimal(12, 3)
+  unit           String?
+
+  @@map("delivery_note_items")
+}
+
+// =========================================================
+// Invoice / Tax Invoice / Receipt / Credit-Debit Note
+// =========================================================
+
+enum InvoiceDocType {
+  INVOICE
+  TAX_INVOICE
+  RECEIPT
+  RECEIPT_TAX_INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id               String         @id @default(cuid())
+  docNumber        String         @unique
+  docType          InvoiceDocType @default(INVOICE)
+  quotationId      String?
+  quotation        Quotation?     @relation(fields: [quotationId], references: [id])
+  salesOrderId     String?
+  salesOrder       SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  deliveryNoteId   String?
+  deliveryNote     DeliveryNote?  @relation(fields: [deliveryNoteId], references: [id])
+  relatedInvoiceId String? // for credit/debit notes referencing original invoice
+  relatedInvoice   Invoice?       @relation("InvoiceRelation", fields: [relatedInvoiceId], references: [id])
+  relatedNotes     Invoice[]      @relation("InvoiceRelation")
+  customerId       String
+  customer         Customer       @relation(fields: [customerId], references: [id])
+  issueDate        DateTime       @default(now())
+  dueDate          DateTime?
+  paymentTerms     String?
+
+  subtotal            Decimal @default(0) @db.Decimal(14, 2)
+  totalDiscount       Decimal @default(0) @db.Decimal(14, 2)
+  amountAfterDiscount Decimal @default(0) @db.Decimal(14, 2)
+  vatRate             Decimal @default(7) @db.Decimal(6, 2)
+  vatAmount           Decimal @default(0) @db.Decimal(14, 2)
+  whtRate             Decimal @default(0) @db.Decimal(6, 2)
+  whtAmount           Decimal @default(0) @db.Decimal(14, 2)
+  netTotal            Decimal @default(0) @db.Decimal(14, 2)
+  amountInWordsTh     String?
+  paidAmount          Decimal @default(0) @db.Decimal(14, 2)
+  balanceAmount       Decimal @default(0) @db.Decimal(14, 2)
+
+  status      InvoiceStatus @default(UNPAID)
+  note        String?       @db.Text
+  createdById String
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  items    InvoiceItem[]
+  payments Payment[]
+  receipts Receipt[]
+
+  @@index([docNumber])
+  @@index([customerId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id              String            @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sortOrder       Int               @default(0)
+  itemType        QuotationItemType @default(PRODUCT)
+  code            String?
+  name            String
+  description     String?           @db.Text
+  qty             Decimal           @default(1) @db.Decimal(12, 3)
+  unit            String?
+  unitPrice       Decimal           @default(0) @db.Decimal(14, 2)
+  discountPercent Decimal           @default(0) @db.Decimal(6, 2)
+  discountAmount  Decimal           @default(0) @db.Decimal(14, 2)
+  lineTotal       Decimal           @default(0) @db.Decimal(14, 2)
+
+  @@map("invoice_items")
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CHEQUE
+  CREDIT_CARD
+  OTHER
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  invoiceId     String
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+  paidDate      DateTime      @default(now())
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod @default(TRANSFER)
+  refNumber     String?
+  bankName      String?
+  attachmentUrl String?
+  note          String?
+  recordedById  String
+  recordedBy    User          @relation(fields: [recordedById], references: [id])
+  createdAt     DateTime      @default(now())
+
+  receipt Receipt?
+
+  @@map("payments")
+}
+
+model Receipt {
+  id          String   @id @default(cuid())
+  docNumber   String   @unique
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+  paymentId   String   @unique
+  payment     Payment  @relation(fields: [paymentId], references: [id])
+  receiptDate DateTime @default(now())
+  amount      Decimal  @db.Decimal(14, 2)
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@map("receipts")
+}
+
+// =========================================================
+// Document numbering
+// =========================================================
+
+enum DocType {
+  QUOTATION
+  SALES_ORDER
+  DELIVERY_NOTE
+  INVOICE
+  TAX_INVOICE
+  RECEIPT
+  RECEIPT_TAX_INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+enum ResetPolicy {
+  NEVER
+  YEARLY
+  MONTHLY
+}
+
+model DocumentSequence {
+  id            String      @id @default(cuid())
+  docType       DocType
+  // Empty string ("") means "not scoped by branch / salesperson" - a
+  // non-null sentinel is used (instead of NULL) so the unique constraint
+  // below reliably powers an atomic `INSERT ... ON CONFLICT DO UPDATE`
+  // (Postgres treats NULL as distinct from NULL in unique constraints,
+  // which would silently break the collision check).
+  branchId      String      @default("")
+  salespersonId String      @default("")
+  prefix        String
+  useYearBE     Boolean     @default(true)
+  useYearCE     Boolean     @default(false)
+  useMonth      Boolean     @default(false)
+  useDay        Boolean     @default(false)
+  runningDigits Int         @default(4)
+  resetPolicy   ResetPolicy @default(YEARLY)
+  separator     String      @default("-")
+  periodKey     String      @default("") // computed bucket key e.g. "2026" or "2026-07"
+  currentNumber Int         @default(0)
+  lastDocNumber String?
+  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime    @default(now())
+
+  @@unique([docType, branchId, salespersonId, periodKey])
+  @@map("document_sequences")
+}
+
+// =========================================================
+// Document Templates
+// =========================================================
+
+model DocumentTemplate {
+  id                    String   @id @default(cuid())
+  name                  String
+  description           String?
+  isDefault             Boolean  @default(false)
+  applicableDocTypes    String[] @default([])
+  logoPosition          String   @default("LEFT")
+  logoSize              String   @default("MEDIUM")
+  headerColor           String   @default("#0F4C81")
+  fontFamily            String   @default("Sarabun")
+  fontSizeBase          Int      @default(10)
+  marginTopMm           Int      @default(15)
+  marginRightMm         Int      @default(12)
+  marginBottomMm        Int      @default(15)
+  marginLeftMm          Int      @default(12)
+  showProductCode       Boolean  @default(true)
+  showUnitPrice         Boolean  @default(true)
+  showDiscountColumn    Boolean  @default(true)
+  productImageMode      String   @default("NONE") // NONE | SMALL | MEDIUM | FULL
+  specMode              String   @default("NONE") // NONE | BRIEF | FULL
+  showDatasheetAppendix Boolean  @default(false)
+  showPageNumber        Boolean  @default(true)
+  isLumpSum             Boolean  @default(false)
+  columnConfig          Json     @default("{}")
+  footerText            String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  quotations Quotation[]
+
+  @@map("document_templates")
+}
+
+// =========================================================
+// Approval / Audit / Attachments / Backup / Settings
+// =========================================================
+
+enum ApprovalAction {
+  REQUESTED
+  APPROVED
+  REJECTED
+}
+
+model ApprovalLog {
+  id                       String         @id @default(cuid())
+  quotationId              String
+  quotation                Quotation      @relation("QuotationApprovals", fields: [quotationId], references: [id])
+  action                   ApprovalAction
+  requestedById            String?
+  requestedBy              User?          @relation("ApprovalRequester", fields: [requestedById], references: [id])
+  actorId                  String?
+  actor                    User?          @relation("ApprovalActor", fields: [actorId], references: [id])
+  reason                   String?        @db.Text
+  gpPercentAtRequest       Decimal?       @db.Decimal(6, 2)
+  discountPercentAtRequest Decimal?       @db.Decimal(6, 2)
+  createdAt                DateTime       @default(now())
+
+  @@map("approval_logs")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // CREATE | UPDATE | DELETE | EXPORT_PDF | PRINT | CANCEL | STATUS_CHANGE | PAYMENT
+  entityType String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  fileName     String
+  filePath     String
+  fileSize     Int
+  mimeType     String
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@map("attachments")
+}
+
+enum BackupType {
+  MANUAL
+  AUTOMATIC
+}
+
+enum BackupStatus {
+  SUCCESS
+  FAILED
+}
+
+model Backup {
+  id            String       @id @default(cuid())
+  fileName      String
+  filePath      String
+  sizeBytes     BigInt       @default(0)
+  type          BackupType   @default(MANUAL)
+  status        BackupStatus @default(SUCCESS)
+  errorMessage  String?
+  triggeredById String?
+  triggeredBy   User?        @relation(fields: [triggeredById], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@map("backups")
+}
+
+model Setting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}

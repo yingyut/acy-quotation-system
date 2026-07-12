@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+.env
+.env.local
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/backups/*
+!storage/backups/.gitkeep
+storage/pdf/*
+!storage/pdf/.gitkeep
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
