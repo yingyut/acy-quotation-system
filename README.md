@@ -1,5 +1,11 @@
 # ACY Quotation & Accounting Document System
 
+[![CI](https://github.com/yingyut/acy-quotation-system/actions/workflows/ci.yml/badge.svg)](https://github.com/yingyut/acy-quotation-system/actions/workflows/ci.yml)
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)
+
 ระบบใบเสนอราคาและเอกสารบัญชี สำหรับ **บริษัท เอซีวาย ซิสเต็มส์แอนด์เน็ตเวิร์ค จำกัด (ACY SYSTEMS AND NETWORK CO., LTD.)**
 
 Local Web Application ที่รันด้วย Docker Compose ใช้งานได้ทันทีบนเครือข่ายภายในบริษัท (LAN) รองรับผู้ใช้งานหลายคนพร้อมกัน ไม่ต้องพึ่งพา Internet หรือบริการ Cloud ที่มีค่าใช้จ่ายรายเดือน
