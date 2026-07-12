@@ -19,7 +19,7 @@ export async function generateQuotationPdf(
   // The repeating page header (logo/company/doc info/customer name - see
   // headerTemplate.ts) needs its own reserved space on top of whatever
   // top margin the admin configured for the document content itself.
-  const REPEATING_HEADER_HEIGHT_MM = 24;
+  const REPEATING_HEADER_HEIGHT_MM = 30;
   const marginOptions = {
     marginTopMm: (quotation.template?.marginTopMm ?? 15) + REPEATING_HEADER_HEIGHT_MM,
     marginRightMm: quotation.template?.marginRightMm ?? 12,

@@ -9,13 +9,14 @@ function esc(s: string | null | undefined): string {
 const SHARED_STYLE = `
   .h-wrap { width: 100%; font-family: 'Sarabun', sans-serif; font-size: 8.5px; color: #1a1a1a; padding: 0 12mm; box-sizing: border-box; }
   .h-row { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #999; padding-bottom: 4px; }
-  .h-company { display: flex; align-items: flex-start; gap: 6px; max-width: 60%; }
-  .h-company img { height: 30px; width: 30px; object-fit: contain; }
-  .h-name-th { font-weight: bold; font-size: 1.15em; }
+  .h-company { display: flex; align-items: flex-start; gap: 8px; max-width: 62%; }
+  .h-company img { height: 38px; width: 38px; object-fit: contain; }
+  .h-name-th { font-weight: bold; font-size: 1.2em; }
   .h-name-en { color: #333; }
   .h-meta { color: #333; line-height: 1.4; margin-top: 1px; }
+  .h-taxid { color: #333; margin-top: 2px; }
   .h-doc { text-align: right; }
-  .h-title { font-weight: bold; font-size: 1.2em; margin-bottom: 2px; }
+  .h-title { font-weight: bold; font-size: 1.25em; margin-bottom: 2px; }
   .h-badge { display: inline-block; margin-bottom: 3px; padding: 0 5px; border: 1px solid #666; border-radius: 3px; font-size: 0.9em; }
   .h-table { margin-left: auto; border-collapse: collapse; font-size: 0.9em; }
   .h-table td { border: 1px solid #ccc; padding: 1px 6px; text-align: left; white-space: nowrap; }
@@ -47,11 +48,12 @@ export function buildRepeatingHeaderHtml(data: QuotationPrintData): string {
           <div>
             <div class="h-name-th">${esc(data.company.nameTh)}</div>
             <div class="h-name-en">${esc(data.company.nameEn)}</div>
-            <div class="h-meta">โทร ${esc(data.company.phone)} · เลขผู้เสียภาษี ${esc(data.company.taxId)}</div>
+            <div class="h-meta">Tel: ${esc(data.company.phone)}</div>
+            <div class="h-taxid">เลขประจำตัวผู้เสียภาษีอากร (TAX ID.) ${esc(data.company.taxId)}</div>
           </div>
         </div>
         <div class="h-doc">
-          <div class="h-title">${esc(data.docTitle)} / Quotation</div>
+          <div class="h-title">${esc(data.docTitle)}/Quotation</div>
           <div class="h-badge">${esc(copyLabel.th)} / ${esc(copyLabel.en)}</div>
           <table class="h-table">
             <tr>
@@ -79,7 +81,8 @@ export function buildInvoiceRepeatingHeaderHtml(data: InvoicePrintData): string 
           <div>
             <div class="h-name-th">${esc(data.company.nameTh)}</div>
             <div class="h-name-en">${esc(data.company.nameEn)}</div>
-            <div class="h-meta">โทร ${esc(data.company.phone)} · เลขผู้เสียภาษี ${esc(data.company.taxId)}</div>
+            <div class="h-meta">Tel: ${esc(data.company.phone)}</div>
+            <div class="h-taxid">เลขประจำตัวผู้เสียภาษีอากร (TAX ID.) ${esc(data.company.taxId)}</div>
           </div>
         </div>
         <div class="h-doc">

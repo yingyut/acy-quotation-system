@@ -6,7 +6,7 @@ import { buildInvoiceRepeatingHeaderHtml } from '@/lib/pdf/headerTemplate';
 import type { CopyType } from '@/lib/pdf/types';
 
 export async function generateReceiptPdf(receiptId: string, userId: string, copyTypes: CopyType[]): Promise<Buffer> {
-  const marginOptions = { marginTopMm: 15 + 24, marginRightMm: 12, marginBottomMm: 15, marginLeftMm: 12, showPageNumber: true };
+  const marginOptions = { marginTopMm: 15 + 30, marginRightMm: 12, marginBottomMm: 15, marginLeftMm: 12, showPageNumber: true };
   const token = signPrintToken({ docType: 'receipt', id: receiptId, userId });
 
   const buffers: Buffer[] = [];

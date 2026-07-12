@@ -43,7 +43,10 @@ export function QuotationPrintDocument({ data }: { data: QuotationPrintData }) {
           .info-row { display: flex; gap: 8px; margin-bottom: 8px; }
           .customer-block { flex: 1.4; border: 1px solid #999; border-radius: 2px; padding: 6px 10px; font-size: 0.88em; }
           .subject-block { flex: 1; border: 1px solid #999; border-radius: 2px; padding: 6px 10px; font-size: 0.88em; }
-          .block-title { font-weight: 700; color: #1a1a1a; margin-bottom: 2px; border-bottom: 1px solid #ddd; padding-bottom: 2px; }
+          .cust-row { display: flex; padding: 1px 0; }
+          .cust-label { width: 150px; flex-shrink: 0; font-weight: 700; }
+          .cust-value { flex: 1; }
+          .cust-check { margin-left: 14px; white-space: nowrap; }
           th.col-head { background: #f2f2f2; color: #1a1a1a; font-size: 0.85em; font-weight: 700; padding: 5px 6px; text-align: left; white-space: nowrap; border: 1px solid #999; }
           th.col-head.num, td.num { text-align: right; }
           td { padding: 5px 6px; font-size: 0.9em; border-bottom: 1px solid #eee; vertical-align: top; }
@@ -95,22 +98,45 @@ export function QuotationPrintDocument({ data }: { data: QuotationPrintData }) {
 
           <div className="info-row">
             <div className="customer-block">
-              <div className="block-title">นามลูกค้า / Customer</div>
-              <div>
-                {customer.name} {customer.isHeadOffice ? '(สำนักงานใหญ่)' : customer.branchName ? `(สาขา ${customer.branchName})` : ''}
+              <div className="cust-row">
+                <div className="cust-label">นามลูกค้า</div>
+                <div className="cust-value">{customer.name}</div>
               </div>
-              <div>ที่อยู่: {customer.address}</div>
-              <div>
-                โทรศัพท์: {customer.phone} {customer.email ? `· E-Mail: ${customer.email}` : ''}
+              <div className="cust-row">
+                <div className="cust-label">ที่อยู่</div>
+                <div className="cust-value">{customer.address}</div>
               </div>
-              <div>
-                เลขประจำตัวผู้เสียภาษี: {customer.taxId || '-'}
-                {customer.branchCode ? ` · สาขา ${customer.branchCode}` : ' · สำนักงานใหญ่'}
+              <div className="cust-row">
+                <div className="cust-label">โทรศัพท์</div>
+                <div className="cust-value" style={{ flex: '0 1 auto', whiteSpace: 'nowrap', marginRight: 16 }}>
+                  {customer.phone || '-'}
+                </div>
+                <div className="cust-label" style={{ width: 'auto', marginRight: 6 }}>
+                  E-Mail:
+                </div>
+                <div className="cust-value">{customer.email || '-'}</div>
               </div>
-              {customer.contactName && <div>ผู้ติดต่อ: {customer.contactName}</div>}
+              <div className="cust-row">
+                <div className="cust-label">เลขประจำตัวผู้เสียภาษี</div>
+                <div className="cust-value">
+                  {customer.taxId || '-'}
+                  <span className="cust-check">{customer.isHeadOffice ? '☑' : '☐'} สำนักงานใหญ่</span>
+                  <span className="cust-check">
+                    {!customer.isHeadOffice ? '☑' : '☐'} สาขา {customer.branchCode || ''}
+                  </span>
+                </div>
+              </div>
+              {customer.contactName && (
+                <div className="cust-row">
+                  <div className="cust-label">ผู้ติดต่อ</div>
+                  <div className="cust-value">{customer.contactName}</div>
+                </div>
+              )}
             </div>
             <div className="subject-block">
-              <div className="block-title">รายการอุปกรณ์ / Subject</div>
+              <div className="cust-row">
+                <div className="cust-label">รายการอุปกรณ์</div>
+              </div>
               <div>{data.title || '-'}</div>
               {data.projectName && <div>โครงการ: {data.projectName}</div>}
             </div>

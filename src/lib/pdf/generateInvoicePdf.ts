@@ -7,7 +7,7 @@ import type { CopyType } from '@/lib/pdf/types';
 
 export async function generateInvoicePdf(invoiceId: string, userId: string, copyTypes: CopyType[]): Promise<Buffer> {
   const marginOptions = {
-    marginTopMm: 15 + 24, // reserve room for the repeating header (see headerTemplate.ts)
+    marginTopMm: 15 + 30, // reserve room for the repeating header (see headerTemplate.ts)
     marginRightMm: 12,
     marginBottomMm: 15,
     marginLeftMm: 12,
