@@ -4,6 +4,12 @@ import { ALL_PERMISSION_KEYS, ROLE_DEFINITIONS } from '../src/lib/permissions';
 import { calcQuotationTotals } from '../src/lib/calc';
 import { bahtText, round2 } from '../src/lib/money';
 import { generateDocNumber } from '../src/lib/docNumber';
+import {
+  buildDefaultTemplateConfig,
+  DEFAULT_ITEM_COLUMNS,
+  type DocumentTemplateConfig,
+  type ItemColumnKey,
+} from '../src/lib/pdf/templateConfig';
 
 const prisma = new PrismaClient();
 
@@ -149,69 +155,118 @@ async function seedCompany() {
   return company;
 }
 
+type ConfigOverrides = {
+  [K in keyof DocumentTemplateConfig]?: Partial<DocumentTemplateConfig[K]>;
+};
+
+function buildPresetConfig(overrides: ConfigOverrides): DocumentTemplateConfig {
+  const base = buildDefaultTemplateConfig();
+  return {
+    general: { ...base.general, ...overrides.general },
+    header: { ...base.header, ...overrides.header },
+    customer: { ...base.customer, ...overrides.customer },
+    itemTable: { ...base.itemTable, ...overrides.itemTable },
+    summary: { ...base.summary, ...overrides.summary },
+    signature: { ...base.signature, ...overrides.signature },
+    sections: { ...base.sections, ...overrides.sections },
+  };
+}
+
+function columnsWithVisibility(hidden: ItemColumnKey[]) {
+  return DEFAULT_ITEM_COLUMNS.map((c) => (hidden.includes(c.key) ? { ...c, visible: false } : { ...c }));
+}
+
 async function seedDocumentTemplates() {
-  const count = await prisma.documentTemplate.count();
-  if (count > 0) return;
+  const existing = await prisma.documentTemplate.findFirst({ where: { name: 'ACY Classic' } });
+  if (existing) return;
+
+  // Pre-existing rows from before the configurable Template Engine (no
+  // `config` JSON) are legacy and no longer resolved by
+  // resolveTemplateConfig - clear their isDefault flag so the new "ACY
+  // Classic" preset below becomes the one true default per doc type.
+  const legacyDefaults = await prisma.documentTemplate.findMany({ where: { isDefault: true } });
+  const legacyIds = legacyDefaults.filter((t) => !t.config).map((t) => t.id);
+  if (legacyIds.length > 0) {
+    await prisma.documentTemplate.updateMany({ where: { id: { in: legacyIds } }, data: { isDefault: false } });
+  }
 
   await prisma.documentTemplate.createMany({
     data: [
       {
-        name: 'ACY Standard',
-        description: 'รูปแบบมาตรฐานใกล้เคียงใบเสนอราคาปัจจุบันของ ACY',
+        name: 'ACY Classic',
+        description: 'รูปแบบมาตรฐานใกล้เคียงใบเสนอราคากระดาษจริงของ ACY',
         isDefault: true,
+        applicableDocTypes: ['QUOTATION', 'INVOICE', 'TAX_INVOICE', 'RECEIPT', 'DELIVERY_NOTE'],
+        config: buildPresetConfig({}),
+      },
+      {
+        name: 'ACY Modern',
+        description: 'โทนสีทันสมัย เส้นขอบบางลง หัวเอกสารแบบย่อในหน้าถัดไป',
         applicableDocTypes: ['QUOTATION', 'INVOICE', 'TAX_INVOICE', 'RECEIPT'],
-        productImageMode: 'NONE',
-        specMode: 'NONE',
-        showProductCode: true,
-        showUnitPrice: true,
-        showDiscountColumn: true,
+        config: buildPresetConfig({
+          general: { primaryColor: '#0EA5A5', borderColor: '#CBD5E1', borderWidthPx: 1, fontFamily: 'Sarabun' },
+          header: { compactHeaderFollowingPages: true, fullHeaderFirstPage: true },
+          itemTable: { headerBackground: '#E6FFFA' },
+        }),
       },
       {
-        name: 'Product with Image',
-        description: 'แสดงรูปสินค้าในแต่ละรายการ',
-        applicableDocTypes: ['QUOTATION'],
-        productImageMode: 'SMALL',
-        specMode: 'BRIEF',
-        showProductCode: true,
-        showUnitPrice: true,
-        showDiscountColumn: true,
+        name: 'ACY Compact',
+        description: 'ระยะขอบและระยะห่างแคบลง เหมาะสำหรับเอกสารรายการเยอะ ต้องการหน้ากระดาษน้อยที่สุด',
+        applicableDocTypes: ['QUOTATION', 'INVOICE', 'RECEIPT'],
+        config: buildPresetConfig({
+          general: { marginTopMm: 18, marginBottomMm: 8, marginLeftMm: 8, marginRightMm: 8, fontSizeBase: 9 },
+          itemTable: { rowPaddingPx: 3, fontSizePt: 8 },
+          header: { companyNameFontSizePt: 10 },
+        }),
       },
       {
-        name: 'Technical Specification',
-        description: 'แสดงรายละเอียดสเปกสินค้าแบบเต็ม',
+        name: 'ACY Product Image',
+        description: 'แสดงรูปสินค้าประกอบแต่ละรายการในตาราง',
         applicableDocTypes: ['QUOTATION'],
-        productImageMode: 'MEDIUM',
-        specMode: 'FULL',
-        showDatasheetAppendix: true,
-        showProductCode: true,
-        showUnitPrice: true,
-        showDiscountColumn: true,
+        config: buildPresetConfig({
+          itemTable: { showProductImage: true, productImageMode: 'SMALL', showSpec: true, specMode: 'BRIEF' },
+        }),
       },
       {
-        name: 'BOQ (Bill of Quantities)',
-        description: 'เหมาะกับงานโครงการและงานติดตั้ง แบ่งเป็นหมวดหมู่งาน',
+        name: 'ACY Technical Specification',
+        description: 'แสดงรายละเอียดสเปกสินค้าแบบเต็ม พร้อมรูปขนาดกลาง เหมาะกับงานวิศวกรรม',
         applicableDocTypes: ['QUOTATION'],
-        productImageMode: 'NONE',
-        specMode: 'NONE',
-        showProductCode: true,
-        showUnitPrice: true,
-        showDiscountColumn: true,
+        config: buildPresetConfig({
+          itemTable: {
+            showProductImage: true,
+            productImageMode: 'MEDIUM',
+            showSpec: true,
+            specMode: 'FULL',
+            columns: DEFAULT_ITEM_COLUMNS.map((c) => (c.key === 'name' ? { ...c, widthMm: 90 } : c)),
+          },
+        }),
       },
       {
-        name: 'Lump Sum',
-        description: 'แสดงราคาเหมารวมและซ่อนราคาย่อยจากลูกค้า',
+        name: 'ACY BOQ',
+        description: 'Bill of Quantities - เน้นรหัส/จำนวน/หน่วย เหมาะกับงานโครงการและงานติดตั้ง',
         applicableDocTypes: ['QUOTATION'],
-        isLumpSum: true,
-        productImageMode: 'NONE',
-        specMode: 'NONE',
-        showProductCode: false,
-        showUnitPrice: false,
-        showDiscountColumn: false,
+        config: buildPresetConfig({
+          itemTable: { columns: columnsWithVisibility(['discount']) },
+          sections: { showProjectSection: true },
+        }),
+      },
+      {
+        name: 'ACY Lump Sum',
+        description: 'แสดงราคาเหมารวม ซ่อนราคาต่อหน่วยและส่วนลดรายรายการจากลูกค้า',
+        applicableDocTypes: ['QUOTATION'],
+        config: buildPresetConfig({
+          itemTable: {
+            columns: DEFAULT_ITEM_COLUMNS.map((c) =>
+              c.key === 'unitPrice' || c.key === 'discount' ? { ...c, visible: false } : c.key === 'lineTotal' ? { ...c, label: 'ราคาเหมารวม' } : c,
+            ),
+          },
+          summary: { showSubtotal: false, showDiscount: false },
+        }),
       },
     ],
   });
 
-  console.log('Seeded 5 document templates.');
+  console.log('Seeded 7 document template presets.');
 }
 
 async function seedSettings() {

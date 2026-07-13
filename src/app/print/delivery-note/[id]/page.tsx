@@ -4,14 +4,14 @@ import { authOptions } from '@/lib/auth';
 import { verifyPrintToken } from '@/lib/printToken';
 import { hasPermission } from '@/lib/rbac';
 import { PERMISSIONS } from '@/lib/permissions';
-import { buildInvoicePrintData } from '@/lib/pdf/buildInvoicePrintData';
+import { buildDeliveryNotePrintData } from '@/lib/pdf/buildDeliveryNotePrintData';
 import { DocumentRenderer, type RenderMode } from '@/components/print/DocumentRenderer';
 import { decodePageModel } from '@/lib/pdf/measurePages';
 import type { CopyType } from '@/lib/pdf/types';
 
 const VALID_COPY_TYPES: CopyType[] = ['ORIGINAL', 'COPY_CUSTOMER', 'COPY_ACCOUNTING', 'COPY_WAREHOUSE', 'COPY_SALES'];
 
-export default async function InvoicePrintPage({
+export default async function DeliveryNotePrintPage({
   params,
   searchParams,
 }: {
@@ -23,15 +23,15 @@ export default async function InvoicePrintPage({
   let authorized = false;
   if (searchParams.token) {
     const payload = verifyPrintToken(searchParams.token);
-    if (payload && payload.docType === 'invoice' && payload.id === params.id) authorized = true;
+    if (payload && payload.docType === 'delivery-note' && payload.id === params.id) authorized = true;
   }
   if (!authorized) {
     const session = await getServerSession(authOptions);
-    if (session?.user && hasPermission(session.user, PERMISSIONS.INVOICE_PRINT)) authorized = true;
+    if (session?.user && hasPermission(session.user, PERMISSIONS.DELIVERY_NOTE_MANAGE)) authorized = true;
   }
   if (!authorized) notFound();
 
-  const data = await buildInvoicePrintData(params.id, copyType);
+  const data = await buildDeliveryNotePrintData(params.id, copyType);
   const mode: RenderMode = searchParams.mode === 'measure' ? 'measure' : searchParams.mode === 'paged' ? 'paged' : 'continuous';
   const pageModel = mode === 'paged' && searchParams.pageModel ? decodePageModel(searchParams.pageModel) : undefined;
 

@@ -1,8 +1,9 @@
 import puppeteer, { type Browser } from 'puppeteer';
+import type { DocumentTemplateConfig } from '@/lib/pdf/templateConfig';
 
 let browserPromise: Promise<Browser> | null = null;
 
-async function getBrowser(): Promise<Browser> {
+export async function getBrowser(): Promise<Browser> {
   if (!browserPromise) {
     browserPromise = puppeteer.launch({
       headless: true,
@@ -11,18 +12,6 @@ async function getBrowser(): Promise<Browser> {
     });
   }
   return browserPromise;
-}
-
-export interface RenderPdfOptions {
-  marginTopMm: number;
-  marginRightMm: number;
-  marginBottomMm: number;
-  marginLeftMm: number;
-  showPageNumber: boolean;
-  landscape?: boolean;
-  /** Raw HTML repeated at the top of every printed page (logo, company
-   *  name, doc number, customer name) - see src/lib/pdf/headerTemplate.ts. */
-  headerHtml?: string;
 }
 
 /** Base URL the PDF worker uses to reach this same Next.js server. In
@@ -37,28 +26,26 @@ export function buildInternalPrintUrl(path: string): string {
   return `${internalBaseUrl()}${path}`;
 }
 
-export async function renderUrlToPdf(url: string, options: RenderPdfOptions): Promise<Buffer> {
+/**
+ * Renders a URL that already carries a fully computed PageModel (see
+ * pageComposer.ts / measurePages.ts) - i.e. the page has manually composed
+ * `.a4-page` divs, each with its own baked-in header/margins/footer. No
+ * Chromium margin or headerTemplate reservation is used here (that
+ * mechanism is what the old fixed-template pipeline relied on); each
+ * `.a4-page` div supplies its own padding, so this simply prints the
+ * already-paginated document as-is.
+ */
+export async function renderPagedPdf(url: string, config: DocumentTemplateConfig): Promise<Buffer> {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
     await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
     const pdf = await page.pdf({
       format: 'A4',
-      landscape: options.landscape ?? false,
+      landscape: config.general.orientation === 'landscape',
       printBackground: true,
-      margin: {
-        top: `${options.marginTopMm + 6}mm`,
-        right: `${options.marginRightMm}mm`,
-        bottom: `${options.marginBottomMm + (options.showPageNumber ? 8 : 0)}mm`,
-        left: `${options.marginLeftMm}mm`,
-      },
-      displayHeaderFooter: true,
-      headerTemplate: options.headerHtml ?? '<div></div>',
-      footerTemplate: options.showPageNumber
-        ? `<div style="width:100%;font-size:8px;text-align:center;color:#888;font-family:sans-serif;">
-             หน้า <span class="pageNumber"></span> / <span class="totalPages"></span>
-           </div>`
-        : '<div></div>',
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+      displayHeaderFooter: false,
     });
     return Buffer.from(pdf);
   } finally {
