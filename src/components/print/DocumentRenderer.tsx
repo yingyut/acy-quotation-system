@@ -44,10 +44,7 @@ function FullHeaderBlock({ data }: { data: DocumentPrintData }) {
     <>
       <div className="header-full-row">
         <CompanyHeader data={data} variant="full" />
-        <div>
-          <DocumentTitle data={data} />
-          <DocumentMeta data={data} />
-        </div>
+        <DocumentTitle data={data} />
       </div>
     </>
   );
@@ -56,11 +53,14 @@ function FullHeaderBlock({ data }: { data: DocumentPrintData }) {
 function Page1ExtrasBlock({ data }: { data: DocumentPrintData }) {
   return (
     <div className="header-block">
-      <ValiditySection data={data} />
       <div className={`info-row ${data.config.customer.layout === '1col' ? 'col1' : ''}`}>
         <CustomerSection data={data} />
-        <ProjectSection data={data} />
+        <div className="doc-meta-col">
+          <DocumentMeta data={data} />
+          <ValiditySection data={data} />
+        </div>
       </div>
+      <ProjectSection data={data} />
     </div>
   );
 }

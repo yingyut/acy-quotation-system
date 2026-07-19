@@ -40,7 +40,7 @@ export function CompanyHeader({ data, variant }: { data: DocumentPrintData; vari
         <div className="header-name-en">{company.nameEn}</div>
         {header.showAddress && company.addressTh && <div className="header-meta-line">{company.addressTh}</div>}
         {(header.showPhone || header.showEmail) && (
-          <div className="header-meta-line">
+          <div className="header-meta-line header-contact-line">
             {header.showPhone && company.phone && <>Tel: {company.phone} </>}
             {header.showEmail && company.email && <>Email: {company.email}</>}
           </div>

@@ -4,14 +4,18 @@ export function ValiditySection({ data }: { data: DocumentPrintData }) {
   if (!data.config.sections.showValidity) return null;
   if (!data.validUntilDate && !data.deliveryTerms && !data.paymentTerms) return null;
   return (
-    <table className="doc-meta-table doc-meta-table-full" data-role="validity-section">
+    <table className="doc-meta-stack" data-role="validity-section">
+      <thead>
+        <tr>
+          <th>กำหนดยืนราคา</th>
+          <th>ระยะเวลาส่งของ</th>
+          <th>เงื่อนไขการชำระเงิน</th>
+        </tr>
+      </thead>
       <tbody>
         <tr>
-          <td className="k">กำหนดยืนราคา</td>
           <td>{data.validUntilDate || '-'}</td>
-          <td className="k">ระยะเวลาส่งของ</td>
           <td>{data.deliveryTerms || '-'}</td>
-          <td className="k">เงื่อนไขการชำระเงิน</td>
           <td>{data.paymentTerms || '-'}</td>
         </tr>
       </tbody>
