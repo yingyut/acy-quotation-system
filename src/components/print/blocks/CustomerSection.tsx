@@ -6,7 +6,7 @@ export function CustomerSection({ data }: { data: DocumentPrintData }) {
   return (
     <div className="customer-block" data-role="customer-section">
       <div className="cust-row">
-        <div className="cust-label">นามลูกค้า</div>
+        <div className="cust-label">ชื่อลูกค้า</div>
         <div className="cust-value">{c.name}</div>
       </div>
       <div className="cust-row">
@@ -37,9 +37,11 @@ export function CustomerSection({ data }: { data: DocumentPrintData }) {
             {c.taxId || '-'}
             {cfg.showBranch && (
               <>
-                <span className="cust-check">{c.isHeadOffice ? '☑' : '☐'} สำนักงานใหญ่</span>
                 <span className="cust-check">
-                  {!c.isHeadOffice ? '☑' : '☐'} สาขา {c.branchCode || ''}
+                  <span className="cust-check-box">{c.isHeadOffice ? '☑' : '☐'}</span> สำนักงานใหญ่
+                </span>
+                <span className="cust-check">
+                  <span className="cust-check-box">{!c.isHeadOffice ? '☑' : '☐'}</span> สาขา {c.branchCode || ''}
                 </span>
               </>
             )}
